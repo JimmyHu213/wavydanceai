@@ -69,6 +69,26 @@ For multi-step tasks, state a brief plan with verification at each step.
 - Write meaningful commit messages explaining why, not what.
 - Never force-push to shared branches.
 
+### Never commit local dev artifacts
+
+The following artifacts are produced by tooling during local development /
+verification and **must not be committed**. They live in `.gitignore`; if you
+see one staged, unstage it instead of editing the ignore rules.
+
+- **Playwright / browser screenshots** generated during smoke tests:
+  - PNG / JPEG / WebP files at the repo root (e.g. `console-light.png`,
+    `demo-glass.png`, `*-fullpage.jpeg`)
+  - The `.playwright-mcp/` directory (page snapshots + console logs from
+    the Playwright MCP server)
+- **Chrome DevTools MCP** profile / cache (`.cache/chrome-devtools-mcp/` etc.)
+- Anything in `/tmp/` referenced by absolute path in scripts — never copy
+  these into the repo.
+
+Verification screenshots are for the assistant to confirm a change locally;
+attach them to the PR description or paste into chat instead of checking
+them into source control. Legitimate product assets belong in
+`web/wavy/public/` or `web/web_reference/assets/`, not the repo root.
+
 ## 8. PR Expectations
 
 - Fill out the PR template completely.
