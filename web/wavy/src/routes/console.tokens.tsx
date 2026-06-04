@@ -152,7 +152,7 @@ function TokensPage() {
         minRows={PAGE_SIZE}
         emptyHint={t('tk.empty')}
       />
-      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) > 0} />
+      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) >= PAGE_SIZE} />
 
       {showCreate && <CreateTokenModal onClose={() => setShowCreate(false)} onCreated={() => {
         setShowCreate(false)

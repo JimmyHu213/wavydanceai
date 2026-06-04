@@ -9,13 +9,25 @@ import { ApiError } from '@/lib/api'
 
 type LoginSearch = { next?: string }
 
+/**
+ * Validate that `next` is a single-leading-slash internal path. Rejects
+ * protocol-relative (`//evil.com`), absolute URLs (`https://...`), and
+ * `javascript:` URIs to prevent open-redirect / phishing attacks.
+ */
+function safeNext(raw: unknown): string {
+  if (typeof raw !== 'string') return '/console'
+  // Must start with a single "/" — not "//" and not "/\".
+  if (!/^\/(?![/\\])/.test(raw)) return '/console'
+  return raw
+}
+
 export const Route = createFileRoute('/login')({
   validateSearch: (s: Record<string, unknown>): LoginSearch => ({
-    next: typeof s.next === 'string' ? s.next : undefined,
+    next: safeNext(s.next),
   }),
   beforeLoad: async ({ search }) => {
     const user = await getSession()
-    if (user) throw redirect({ to: (search.next || '/console') as '/console' })
+    if (user) throw redirect({ to: safeNext(search.next) as '/console' })
   },
   component: LoginPage,
 })
@@ -36,7 +48,8 @@ function LoginPage() {
     try {
       await authService.login(username, password)
       clearSessionCache()
-      navigate({ to: (next || '/console') as '/console' })
+      // `next` already validated by validateSearch above.
+      navigate({ to: safeNext(next) as '/console' })
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t('login.failed'))
     } finally {

@@ -12,11 +12,12 @@ export const channelsService = {
     return unwrap(res) ?? []
   },
 
-  async test(id: number, model?: string): Promise<{ message?: string; time?: number }> {
-    const res = await api.get<ApiResponse<{ message?: string; time?: number }>>(`/channel/test/${id}`, {
+  /** Backend returns just {success, message} — success means the channel responded; throws on failure. */
+  async test(id: number, model?: string): Promise<void> {
+    const res = await api.get<ApiResponse>(`/channel/test/${id}`, {
       params: model ? { model } : undefined,
     })
-    return unwrap(res) ?? {}
+    unwrap(res)
   },
 
   async create(channel: Partial<Channel>): Promise<void> {

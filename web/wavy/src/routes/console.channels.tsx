@@ -18,6 +18,8 @@ export const Route = createFileRoute('/console/channels')({
   component: ChannelsPage,
 })
 
+const PAGE_SIZE = 10 // visual hint; backend uses its own ItemsPerPage
+
 function ChannelsPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -148,7 +150,7 @@ function ChannelsPage() {
         }
       />
       <DataTable columns={columns} rows={data} rowKey={(r) => r.id} loading={isLoading} minRows={10} emptyHint={t('ch.empty')} />
-      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) > 0} />
+      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) >= PAGE_SIZE} />
     </div>
   )
 }

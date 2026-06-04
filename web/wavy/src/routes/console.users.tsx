@@ -90,8 +90,10 @@ function UsersPage() {
       mono: true,
       align: 'right',
       cell: (u) => (
+        // `quota` from the Go model is the remaining balance (decremented on use);
+        // `used_quota` is the cumulative spend. Don't subtract.
         <div className="text-right">
-          <div className="tabular-nums">{formatQuota(u.quota - u.used_quota)}</div>
+          <div className="tabular-nums">{formatQuota(u.quota)}</div>
           <div className="text-xs text-[color:var(--muted)]">
             {formatQuota(u.used_quota)} used
           </div>
@@ -165,15 +167,15 @@ function RoleBadge({ role }: { role: number }) {
   const label = ROLE_LABEL[role] ?? `r${role}`
   const isRoot = role >= Role.RootUser
   const isAdmin = role >= Role.AdminUser
+  // Mutually exclusive branches so Tailwind's "last wins" can't paint admin styles over root.
+  const tone =
+    isRoot
+      ? 'bg-[color:var(--coral)]/12 text-[color:var(--coral)]'
+      : isAdmin
+        ? 'bg-[color:var(--cyan)]/15 text-[color:var(--cyan)]'
+        : 'bg-[color:var(--border)]/40 text-[color:var(--muted)]'
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-xs uppercase tracking-[1px]',
-        isRoot && 'bg-[color:var(--coral)]/12 text-[color:var(--coral)]',
-        !isRoot && isAdmin && 'bg-[color:var(--cyan)]/15 text-[color:var(--cyan)]',
-        !isAdmin && 'bg-[color:var(--border)]/40 text-[color:var(--muted)]',
-      )}
-    >
+    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-xs uppercase tracking-[1px]', tone)}>
       {isAdmin && <ShieldCheck className="h-3 w-3" strokeWidth={2.5} />}
       {label}
     </span>

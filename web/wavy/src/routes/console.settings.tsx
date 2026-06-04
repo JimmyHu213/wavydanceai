@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -167,10 +167,17 @@ function FieldRow({
   const [draft, setDraft] = useState(value)
   const [savedFlash, setSavedFlash] = useState(false)
 
-  // Keep draft in sync when server value arrives.
-  if (field.kind !== 'bool' && draft === '' && value !== '' && draft !== value) {
-    setDraft(value)
-  }
+  // Sync draft once when the server value arrives after an initial empty render.
+  // Using useEffect instead of a render-body setState avoids clobbering user edits
+  // (e.g. a deliberate "clear field" action) and silences a StrictMode warning.
+  const initialSyncDone = useState(false)
+  const [synced, setSynced] = initialSyncDone
+  useEffect(() => {
+    if (!synced && field.kind !== 'bool' && draft === '' && value !== '') {
+      setDraft(value)
+      setSynced(true)
+    }
+  }, [synced, field.kind, draft, value])
 
   if (field.kind === 'bool') {
     const on = asBool(value)

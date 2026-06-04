@@ -14,6 +14,8 @@ export const Route = createFileRoute('/console/logs')({
   component: LogsPage,
 })
 
+const PAGE_SIZE = 10 // visual hint; backend uses its own ItemsPerPage
+
 function LogsPage() {
   const { t } = useTranslation()
   const { user } = Route.useLoaderData()
@@ -126,7 +128,7 @@ function LogsPage() {
       </div>
 
       <DataTable columns={columns} rows={data} rowKey={(r) => r.id} loading={isLoading} minRows={12} emptyHint={t('lg.empty')} />
-      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) > 0} />
+      <Pager p={p} onP={setP} hasMore={(data?.length ?? 0) >= PAGE_SIZE} />
     </div>
   )
 }
