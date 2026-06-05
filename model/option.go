@@ -29,6 +29,9 @@ func InitOptionMap() {
 	config.OptionMap["EmailVerificationEnabled"] = strconv.FormatBool(config.EmailVerificationEnabled)
 	config.OptionMap["GitHubOAuthEnabled"] = strconv.FormatBool(config.GitHubOAuthEnabled)
 	config.OptionMap["OidcEnabled"] = strconv.FormatBool(config.OidcEnabled)
+	config.OptionMap["GoogleEnabled"] = strconv.FormatBool(config.GoogleEnabled)
+	config.OptionMap["GoogleClientId"] = config.GoogleClientId
+	config.OptionMap["GoogleClientSecret"] = config.GoogleClientSecret
 	config.OptionMap["WeChatAuthEnabled"] = strconv.FormatBool(config.WeChatAuthEnabled)
 	config.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(config.TurnstileCheckEnabled)
 	config.OptionMap["RegisterEnabled"] = strconv.FormatBool(config.RegisterEnabled)
@@ -140,6 +143,8 @@ func updateOptionMap(key string, value string) (err error) {
 			config.GitHubOAuthEnabled = boolValue
 		case "OidcEnabled":
 			config.OidcEnabled = boolValue
+		case "GoogleEnabled":
+			config.GoogleEnabled = boolValue
 		case "WeChatAuthEnabled":
 			config.WeChatAuthEnabled = boolValue
 		case "TurnstileCheckEnabled":
@@ -196,6 +201,10 @@ func updateOptionMap(key string, value string) (err error) {
 		config.OidcClientId = value
 	case "OidcClientSecret":
 		config.OidcClientSecret = value
+	case "GoogleClientId":
+		config.GoogleClientId = value
+	case "GoogleClientSecret":
+		config.GoogleClientSecret = value
 	case "OidcWellKnown":
 		config.OidcWellKnown = value
 	case "OidcAuthorizationEndpoint":

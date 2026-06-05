@@ -64,7 +64,14 @@
     "cancel": "Cancel",
     "save": "Save",
     "saved": "Saved",
-    "create": "Create"
+    "create": "Create",
+    "or": "or"
+  },
+  "oauth": {
+    "workingTitle": "Signing you in…",
+    "workingBody": "Finishing the {{provider}} handshake. Hold tight.",
+    "failedTitle": "Sign-in failed",
+    "backToLogin": "Back to sign in"
   },
   "channelDialog": {
     "kicker": "Channel",
@@ -261,11 +268,18 @@
     "helper": "Lost your way?",
     "backHome": "Back to homepage",
     "noAccount": "Don't have an account?",
-    "signUp": "Sign up"
+    "signUp": "Sign up",
+    "oauth": {
+      "google": "Continue with Google",
+      "github": "Continue with GitHub"
+    }
   },
   "register": {
     "kicker": "wavydance.ai · sign up",
     "title": "Create your account",
+    "email": "Email",
+    "emailHint": "We'll use this for password recovery.",
+    "emailInvalid": "Enter a valid email address.",
     "username": "Username",
     "password": "Password",
     "confirmPassword": "Confirm password",
@@ -275,7 +289,11 @@
     "createAccount": "Create account",
     "haveAccount": "Already have an account?",
     "signIn": "Sign in",
-    "failed": "Registration failed"
+    "failed": "Registration failed",
+    "oauth": {
+      "google": "Sign up with Google",
+      "github": "Sign up with GitHub"
+    }
   },
   "users": {
     "kicker": "Account",

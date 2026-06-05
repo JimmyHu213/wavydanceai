@@ -64,7 +64,14 @@
     "cancel": "取消",
     "save": "保存",
     "saved": "已保存",
-    "create": "创建"
+    "create": "创建",
+    "or": "或"
+  },
+  "oauth": {
+    "workingTitle": "正在登录…",
+    "workingBody": "正在完成 {{provider}} 授权，请稍候。",
+    "failedTitle": "登录失败",
+    "backToLogin": "返回登录"
   },
   "channelDialog": {
     "kicker": "渠道",
@@ -261,11 +268,18 @@
     "helper": "走错地方了？",
     "backHome": "返回首页",
     "noAccount": "还没有账号？",
-    "signUp": "注册"
+    "signUp": "注册",
+    "oauth": {
+      "google": "使用 Google 登录",
+      "github": "使用 GitHub 登录"
+    }
   },
   "register": {
     "kicker": "wavydance.ai · 注册",
     "title": "创建账号",
+    "email": "邮箱",
+    "emailHint": "用于找回密码。",
+    "emailInvalid": "请输入有效的邮箱地址。",
     "username": "用户名",
     "password": "密码",
     "confirmPassword": "确认密码",
@@ -275,7 +289,11 @@
     "createAccount": "创建账号",
     "haveAccount": "已经有账号？",
     "signIn": "登录",
-    "failed": "注册失败"
+    "failed": "注册失败",
+    "oauth": {
+      "google": "使用 Google 注册",
+      "github": "使用 GitHub 注册"
+    }
   },
   "users": {
     "kicker": "账号管理",
