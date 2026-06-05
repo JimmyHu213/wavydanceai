@@ -11,6 +11,7 @@ import {
   Receipt,
   Users,
   Settings,
+  UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -31,6 +32,7 @@ const OPERATIONS: NavItem[] = [
 ]
 
 const ACCOUNT: NavItem[] = [
+  { to: '/console/profile', icon: UserCircle, i18n: 'console.nav.profile' },
   { to: '/console/users', icon: Users, i18n: 'console.nav.users' },
   { to: '/console/settings', icon: Settings, i18n: 'console.nav.settings' },
 ]
