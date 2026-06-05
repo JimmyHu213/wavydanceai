@@ -2,8 +2,9 @@
 # Run `make help` (or just `make`) to see what's available.
 
 .DEFAULT_GOAL := help
+SHELL := /bin/bash
 .PHONY: help up down restart logs build shell db-shell redis-shell reset \
-        test test-unit test-integration test-coverage \
+        test test-unit test-integration test-clean test-coverage \
         lint fmt vet web-dev web-build clean
 
 # ----------------------------------------------------------------------------
@@ -57,11 +58,20 @@ test-unit: ## Run Go unit tests with race detector and coverage
 	go test -race -cover -coverprofile=coverage.txt -covermode=atomic ./...
 
 test-integration: ## Run integration tests against a disposable Postgres + Redis
-	@docker compose -f docker-compose.test.yml up -d --wait
-	@trap 'docker compose -f docker-compose.test.yml down -v' EXIT; \
+	@set -eo pipefail; \
+	cleanup() { \
+		echo "→ tearing down test stack"; \
+		docker compose -f docker-compose.test.yml down -v --remove-orphans >/dev/null 2>&1 || true; \
+	}; \
+	trap cleanup EXIT INT TERM; \
+	docker compose -f docker-compose.test.yml up -d --wait; \
 	TEST_SQL_DSN="postgres://test:test@localhost:5433/test?sslmode=disable" \
 	TEST_REDIS_CONN_STRING="redis://localhost:6380" \
 		go test -tags=integration -race -count=1 ./...
+
+test-clean: ## Force-stop the test stack and delete its volumes (use if a previous run left containers behind)
+	@docker compose -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
+	@echo "test stack cleaned"
 
 test-coverage: test-unit ## Open the HTML coverage report
 	go tool cover -html=coverage.txt
