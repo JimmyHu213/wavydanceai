@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { authService } from '@/lib/services/auth'
 import { clearSessionCache, getSession } from '@/lib/session'
 import { ApiError } from '@/lib/api'
+import { OAuthButtons } from '@/components/auth/OAuthButtons'
 
 type LoginSearch = { next?: string }
 
@@ -85,6 +86,8 @@ function LoginPage() {
           onSubmit={onSubmit}
           className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-8 shadow-[var(--shadow-jelly)]"
         >
+          <OAuthButtons mode="login" />
+
           <Field
             label={t('login.username')}
             value={username}

@@ -44,6 +44,8 @@ func GetStatus(c *gin.Context) {
 			"oidc_authorization_endpoint": config.OidcAuthorizationEndpoint,
 			"oidc_token_endpoint":         config.OidcTokenEndpoint,
 			"oidc_userinfo_endpoint":      config.OidcUserinfoEndpoint,
+			"google_oauth":                config.GoogleEnabled,
+			"google_client_id":            config.GoogleClientId,
 		},
 	})
 	return
