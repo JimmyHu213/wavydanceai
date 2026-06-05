@@ -7,7 +7,9 @@ export function Hero() {
   const { t } = useTranslation()
 
   return (
-    <header className="relative flex min-h-screen items-center overflow-hidden bg-gradient-to-b from-[color:var(--bg)] to-[color:var(--bg2)] px-[6vw] pb-20 pt-[140px]">
+    // Height ≈ viewport minus the Marquee strip below (~80px), so on a fresh
+    // load the scrolling vendor banner peeks at the bottom edge as a scroll cue.
+    <header className="relative flex min-h-[calc(100vh-80px)] items-center overflow-hidden bg-gradient-to-b from-[color:var(--bg)] to-[color:var(--bg2)] px-[6vw] pb-20 pt-[140px]">
       <div
         className="pointer-events-none absolute -left-40 -top-56 z-0 h-[680px] w-[680px] rounded-full bg-[#3FB3D9] blur-[140px]"
         style={{ opacity: 'var(--glow-op)' }}
