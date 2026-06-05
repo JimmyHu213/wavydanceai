@@ -7,16 +7,6 @@ export const tokensService = {
     return unwrap(res) ?? []
   },
 
-  async search(keyword: string): Promise<Token[]> {
-    const res = await api.get<ApiResponse<Token[]>>('/token/search', { params: { keyword } })
-    return unwrap(res) ?? []
-  },
-
-  async get(id: number): Promise<Token> {
-    const res = await api.get<ApiResponse<Token>>(`/token/${id}`)
-    return unwrap(res)
-  },
-
   async create(token: Partial<Token>): Promise<void> {
     const res = await api.post<ApiResponse>('/token/', token)
     unwrap(res)

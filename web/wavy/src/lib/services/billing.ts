@@ -8,12 +8,6 @@ export const billingService = {
     return unwrap(res) ?? 0
   },
 
-  /** Admin: directly grant quota to a user (no redemption code). */
-  async adminTopUp(userId: number, quota: number, remark = ''): Promise<void> {
-    const res = await api.post<ApiResponse>('/topup', { user_id: userId, quota, remark })
-    unwrap(res)
-  },
-
   /** Admin: list redemption codes. */
   async listRedemptions(p = 0): Promise<Redemption[]> {
     const res = await api.get<ApiResponse<Redemption[]>>('/redemption/', { params: { p } })

@@ -13,16 +13,6 @@ export const logsService = {
     const res = await api.get<ApiResponse<Log[]>>('/log/', { params: filters })
     return unwrap(res) ?? []
   },
-
-  async searchSelf(keyword: string): Promise<Log[]> {
-    const res = await api.get<ApiResponse<Log[]>>('/log/self/search', { params: { keyword } })
-    return unwrap(res) ?? []
-  },
-
-  async searchAll(keyword: string): Promise<Log[]> {
-    const res = await api.get<ApiResponse<Log[]>>('/log/search', { params: { keyword } })
-    return unwrap(res) ?? []
-  },
 }
 
 export const LOG_TYPE_LABEL: Record<number, string> = {

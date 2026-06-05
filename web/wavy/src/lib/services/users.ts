@@ -10,23 +10,8 @@ export const usersService = {
     return unwrap(res) ?? []
   },
 
-  async search(keyword: string): Promise<User[]> {
-    const res = await api.get<ApiResponse<User[]>>('/user/search', { params: { keyword } })
-    return unwrap(res) ?? []
-  },
-
-  async get(id: number): Promise<User> {
-    const res = await api.get<ApiResponse<User>>(`/user/${id}`)
-    return unwrap(res)
-  },
-
   async create(user: Partial<User> & { password: string }): Promise<void> {
     const res = await api.post<ApiResponse>('/user/', user)
-    unwrap(res)
-  },
-
-  async update(user: Partial<User> & { id: number }): Promise<void> {
-    const res = await api.put<ApiResponse>('/user/', user)
     unwrap(res)
   },
 
