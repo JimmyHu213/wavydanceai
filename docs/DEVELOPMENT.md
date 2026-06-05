@@ -111,7 +111,7 @@ make restart
 
 From your IDE or `psql`:
 
-```
+```text
 postgres://wavydance:wavydance@localhost:5432/wavydance
 ```
 
