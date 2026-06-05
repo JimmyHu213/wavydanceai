@@ -1,7 +1,13 @@
-import { Link, useLocation } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Search, Bell, Moon, Sun, Globe, ChevronRight, Activity } from 'lucide-react'
+import { Search, Bell, Moon, Sun, Globe, ChevronRight, Activity, LogOut, User as UserIcon } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
+import { authService } from '@/lib/services/auth'
+import { clearSessionCache } from '@/lib/session'
+import type { User } from '@/lib/types'
+import { cn } from '@/lib/cn'
 
 const PATH_KEYS: Record<string, string> = {
   '': 'console.nav.overview',
@@ -22,6 +28,13 @@ export function Topbar() {
 
   const seg = pathname.replace(/^\/console\/?/, '').split('/')[0] || ''
   const crumbKey = PATH_KEYS[seg] ?? 'console.nav.overview'
+
+  // Live user for avatar initials + menu — cheap because session.ts caches it.
+  const { data: user } = useQuery({
+    queryKey: ['self'],
+    queryFn: () => authService.getSelf(),
+    staleTime: 30_000,
+  })
 
   const cycleLang = () => i18n.changeLanguage(i18n.language?.startsWith('zh') ? 'en' : 'zh-CN')
 
@@ -57,7 +70,6 @@ export function Topbar() {
         <span className="tracking-[1px]">{t('console.allFlowing')}</span>
       </div>
 
-      {/* Actions */}
       <button
         type="button"
         onClick={cycleLang}
@@ -86,21 +98,94 @@ export function Topbar() {
         <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[color:var(--coral)]" />
       </button>
 
-      <div className="flex items-center gap-2.5 rounded-full border border-[color:var(--border)] bg-[color:var(--bg2)] py-0.5 pl-0.5 pr-3">
-        <Avatar />
-        <span className="hidden text-sm font-medium md:inline">jimmy.hu</span>
-      </div>
+      <UserMenu user={user ?? null} />
     </header>
   )
 }
 
-function Avatar() {
+function UserMenu({ user }: { user: User | null }) {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click or Escape.
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const username = user?.username ?? '—'
+  const display = user?.display_name || username
+  const initials = (username.slice(0, 2) || '··').toUpperCase()
+
+  async function signOut() {
+    try {
+      await authService.logout()
+    } catch {
+      // Best-effort; even if the server rejects, clear local state.
+    }
+    clearSessionCache()
+    setOpen(false)
+    navigate({ to: '/login' })
+  }
+
   return (
-    <span
-      className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-[#052832]"
-      style={{ background: 'linear-gradient(135deg,#3FB3D9,#4ED4DC,#B5ECF2)' }}
-    >
-      JH
-    </span>
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn(
+          'flex items-center gap-2.5 rounded-full border border-[color:var(--border)] bg-[color:var(--bg2)] py-0.5 pl-0.5 pr-3 transition hover:border-[color:var(--cyan)]',
+          open && 'border-[color:var(--cyan)]',
+        )}
+      >
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-[#052832]"
+          style={{ background: 'linear-gradient(135deg,#3FB3D9,#4ED4DC,#B5ECF2)' }}
+        >
+          {initials}
+        </span>
+        <span className="hidden text-sm font-medium md:inline">{username}</span>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-60 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-[var(--shadow-jelly)]"
+        >
+          <div className="border-b border-[color:var(--border)] px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <UserIcon className="h-3.5 w-3.5 text-[color:var(--muted)]" />
+              {display}
+            </div>
+            {user?.email && (
+              <div className="mt-0.5 truncate font-mono text-xs text-[color:var(--muted)]">{user.email}</div>
+            )}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={signOut}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-[color:var(--text)] transition hover:bg-[color:var(--bg2)] hover:text-[color:var(--coral)]"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
