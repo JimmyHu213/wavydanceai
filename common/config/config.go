@@ -152,6 +152,11 @@ var InitialRootToken = os.Getenv("INITIAL_ROOT_TOKEN")
 
 var InitialRootAccessToken = os.Getenv("INITIAL_ROOT_ACCESS_TOKEN")
 
+// InitialRootPassword overrides the seeded root account password on the very
+// first run (when the users table is empty). Always set this in any deployment
+// reachable from outside localhost — the fallback "123456" is publicly known.
+var InitialRootPassword = os.Getenv("INITIAL_ROOT_PASSWORD")
+
 var GeminiVersion = env.String("GEMINI_VERSION", "v1")
 
 var OnlyOneLogFile = env.Bool("ONLY_ONE_LOG_FILE", false)
