@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -166,4 +167,96 @@ func TestPasskeyDisabledRejects403(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	engine.ServeHTTP(w2, req2)
 	require.Equal(t, http.StatusForbidden, w2.Code)
+}
+
+func setupPasskeyLoginTest(t *testing.T) (*gin.Engine, *model.User, vwa.Authenticator, vwa.Credential, vwa.RelyingParty) {
+	t.Helper()
+	engine, u, auth, cred, rp := setupPasskeyCtrlTest(t)
+	engine.POST("/api/user/login/passkey/begin", BeginPasskeyLogin)
+	engine.POST("/api/user/login/passkey/finish", FinishPasskeyLogin)
+	return engine, u, auth, cred, rp
+}
+
+// webAuthnIDCtrl mirrors userAdapter.WebAuthnID so test code can set the
+// user handle on the virtual authenticator.
+func webAuthnIDCtrl(u *model.User) []byte {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, uint32(u.Id))
+	return b
+}
+
+func TestPasswordlessLoginRoundTrip(t *testing.T) {
+	engine, u, auth, cred, rp := setupPasskeyLoginTest(t)
+
+	// Step 1: Register a credential for the user (stubAuth injects u.Id).
+	beginBody := bytes.NewReader([]byte(`{"name":"login-test"}`))
+	beginReq := httptest.NewRequest(http.MethodPost, "/api/user/passkey/credentials/register/begin", beginBody)
+	beginReq.Header.Set("Content-Type", "application/json")
+	beginRec := httptest.NewRecorder()
+	engine.ServeHTTP(beginRec, beginReq)
+	require.Equal(t, http.StatusOK, beginRec.Code)
+	cookie := beginRec.Result().Header.Get("Set-Cookie")
+
+	var env struct {
+		Data json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(beginRec.Body.Bytes(), &env))
+	// API: ParseAttestationOptions takes a string and returns (*AttestationOptions, error)
+	attestationOptions, err := vwa.ParseAttestationOptions(string(env.Data))
+	require.NoError(t, err)
+	attestation := vwa.CreateAttestationResponse(rp, auth, cred, *attestationOptions)
+
+	finishReq := httptest.NewRequest(http.MethodPost, "/api/user/passkey/credentials/register/finish", bytes.NewReader([]byte(attestation)))
+	finishReq.Header.Set("Content-Type", "application/json")
+	finishReq.Header.Set("Cookie", cookie)
+	finishRec := httptest.NewRecorder()
+	engine.ServeHTTP(finishRec, finishReq)
+	require.Equal(t, http.StatusOK, finishRec.Code, finishRec.Body.String())
+
+	// Step 2: Prepare virtual authenticator for login assertion.
+	// Counter must be > 0 so go-webauthn sees a valid sign-count increment.
+	cred.Counter = 1
+	auth.AddCredential(cred)
+	auth.Options.UserHandle = webAuthnIDCtrl(u)
+
+	// Step 3: Begin passkey login.
+	loginBegin := httptest.NewRequest(http.MethodPost, "/api/user/login/passkey/begin",
+		bytes.NewReader([]byte(`{"username":"alice-c"}`)))
+	loginBegin.Header.Set("Content-Type", "application/json")
+	loginBeginRec := httptest.NewRecorder()
+	engine.ServeHTTP(loginBeginRec, loginBegin)
+	require.Equal(t, http.StatusOK, loginBeginRec.Code, loginBeginRec.Body.String())
+	loginCookie := loginBeginRec.Result().Header.Get("Set-Cookie")
+
+	var lEnv struct {
+		Data json.RawMessage `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(loginBeginRec.Body.Bytes(), &lEnv))
+	// API: ParseAssertionOptions takes a string and returns (*AssertionOptions, error)
+	assertionOptions, err := vwa.ParseAssertionOptions(string(lEnv.Data))
+	require.NoError(t, err)
+	assertion := vwa.CreateAssertionResponse(rp, auth, cred, *assertionOptions)
+
+	// Step 4: Finish passkey login.
+	loginFinish := httptest.NewRequest(http.MethodPost, "/api/user/login/passkey/finish", bytes.NewReader([]byte(assertion)))
+	loginFinish.Header.Set("Content-Type", "application/json")
+	loginFinish.Header.Set("Cookie", loginCookie)
+	loginFinishRec := httptest.NewRecorder()
+	engine.ServeHTTP(loginFinishRec, loginFinish)
+	require.Equal(t, http.StatusOK, loginFinishRec.Code, loginFinishRec.Body.String())
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(loginFinishRec.Body.Bytes(), &resp))
+	require.True(t, resp["success"].(bool))
+	require.Equal(t, float64(u.Id), resp["data"].(map[string]any)["id"])
+}
+
+func TestPasswordlessUnknownUserDoesNotEnumerate(t *testing.T) {
+	engine, _, _, _, _ := setupPasskeyLoginTest(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/user/login/passkey/begin",
+		bytes.NewReader([]byte(`{"username":"does-not-exist"}`)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, "anti-enum: returns options even for unknown user")
 }

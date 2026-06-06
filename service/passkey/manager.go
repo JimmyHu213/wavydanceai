@@ -154,14 +154,24 @@ func (m *Manager) FinishRegister(u *model.User, sessionBlob []byte, body []byte,
 
 // BeginLogin builds the CredentialRequestOptions. allowedCredentials is
 // derived from `creds`; pass an empty slice for the anti-enumeration path
-// (unknown username, etc.).
+// (unknown username, etc.) — in that case we fall back to a discoverable
+// login so the library does not reject an empty allowCredentials list.
 func (m *Manager) BeginLogin(u *model.User, creds []model.PasskeyCredential) (optionsJSON []byte, sessionBlob []byte, err error) {
 	w, err := buildWebauthn()
 	if err != nil {
 		return nil, nil, err
 	}
-	adapter := newUserAdapter(u, creds)
-	options, sd, err := w.BeginLogin(adapter)
+	var options *protocol.CredentialAssertion
+	var sd *webauthn.SessionData
+	if len(creds) == 0 {
+		// Unknown user or user with no passkeys: emit a discoverable-login
+		// challenge (empty allowCredentials) so we don't leak whether the
+		// username exists.
+		options, sd, err = w.BeginDiscoverableLogin()
+	} else {
+		adapter := newUserAdapter(u, creds)
+		options, sd, err = w.BeginLogin(adapter)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %v", ErrVerifyFailed, err)
 	}

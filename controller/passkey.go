@@ -255,3 +255,91 @@ func respondPasskeyServiceError(c *gin.Context, err error) {
 
 // Reserved for future credentialId Base64URL helpers; keeps the import live.
 var _ = base64.URLEncoding
+
+// BeginPasskeyLogin: POST /api/user/login/passkey/begin
+// Body: {"username":"alice"} — backend looks up the user, returns the
+// CredentialRequestOptions. For unknown users we still return valid options
+// (empty allowList) to avoid username enumeration.
+func BeginPasskeyLogin(c *gin.Context) {
+	if !ensurePasskeyEnabled(c) {
+		return
+	}
+	var req struct {
+		Username string `json:"username" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, err)
+		return
+	}
+	user := model.User{Username: req.Username}
+	uid := 0
+	var creds []model.PasskeyCredential
+	if err := model.DB.Where("username = ?", req.Username).First(&user).Error; err == nil {
+		uid = user.Id
+		creds, _ = model.ListPasskeysByUserId(uid)
+	} else {
+		user = model.User{Id: 0, Username: req.Username}
+	}
+	mgr, err := passkey.NewManager()
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	options, sessionBlob, err := mgr.BeginLogin(&user, creds)
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	sess := sessions.Default(c)
+	sess.Set(sessionKeyPasskeyLoginChallenge, sessionBlob)
+	sess.Set(sessionKeyPasskeyLoginUserId, uid)
+	if err := sess.Save(); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.Data(http.StatusOK, "application/json", wrapData(options))
+}
+
+// FinishPasskeyLogin: POST /api/user/login/passkey/finish
+// Validates the assertion, promotes the session to a logged-in one via
+// SetupLogin. Skips TOTP — passkey is itself a strong second factor.
+func FinishPasskeyLogin(c *gin.Context) {
+	if !ensurePasskeyEnabled(c) {
+		return
+	}
+	sess := sessions.Default(c)
+	blob, _ := sess.Get(sessionKeyPasskeyLoginChallenge).([]byte)
+	uid, _ := sess.Get(sessionKeyPasskeyLoginUserId).(int)
+	if len(blob) == 0 || uid == 0 {
+		respondError(c, errNoPendingPasskeyChal)
+		return
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	user, err := model.GetUserById(uid, false)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	creds, err := model.ListPasskeysByUserId(uid)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	mgr, err := passkey.NewManager()
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	if _, err := mgr.FinishLogin(user, creds, blob, body); err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	sess.Delete(sessionKeyPasskeyLoginChallenge)
+	sess.Delete(sessionKeyPasskeyLoginUserId)
+	_ = sess.Save()
+	SetupLogin(user, c)
+}
