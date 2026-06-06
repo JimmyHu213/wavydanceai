@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/setting/operation_setting"
 )
@@ -40,7 +42,11 @@ func buildCheckinInfo(userId int) (*checkinInfo, error) {
 	}
 	info.TodayReward = model.PreviewReward(previewStreak)
 	if checkedToday {
-		if t, err := model.GetTodayCheckin(userId); err == nil && t != nil {
+		t, err := model.GetTodayCheckin(userId)
+		if err != nil {
+			return nil, err
+		}
+		if t != nil {
 			info.LastCheckinDate = t.Date
 			info.TodayReward = t.Quota
 		}
@@ -75,7 +81,12 @@ func DoCheckin(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	info, _ := buildCheckinInfo(userId)
+	// The claim already committed; a failure to rebuild the info payload
+	// is a read-side glitch we log but don't surface as a claim failure.
+	info, infoErr := buildCheckinInfo(userId)
+	if infoErr != nil {
+		logger.SysError(fmt.Sprintf("checkin: build info after claim failed for user %d: %s", userId, infoErr.Error()))
+	}
 	msg := "签到成功"
 	if already {
 		msg = "今日已签到"
