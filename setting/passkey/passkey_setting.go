@@ -3,6 +3,8 @@
 package passkey
 
 import (
+	"errors"
+
 	"github.com/songquanpeng/one-api/setting/config"
 )
 
@@ -30,4 +32,20 @@ func init() {
 // GetPasskeySetting returns the live pointer; never copy.
 func GetPasskeySetting() *PasskeySetting {
 	return &passkeySetting
+}
+
+// Validate enforces invariants documented in the spec §5 startup guard.
+// Returns an error rather than panicking so the caller decides when to
+// abort — keeps the package testable without panic recovery.
+func (s *PasskeySetting) Validate() error {
+	if !s.Enabled {
+		return nil
+	}
+	if s.RPID == "" {
+		return errors.New("passkey: enabled but rp_id is empty")
+	}
+	if s.RPOrigins == "" {
+		return errors.New("passkey: enabled but rp_origins is empty")
+	}
+	return nil
 }

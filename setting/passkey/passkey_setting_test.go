@@ -8,6 +8,21 @@ import (
 	"github.com/songquanpeng/one-api/setting/config"
 )
 
+func TestValidateRejectsEnabledWithoutRPID(t *testing.T) {
+	s := GetPasskeySetting()
+	prev := *s
+	t.Cleanup(func() { *s = prev })
+
+	*s = PasskeySetting{Enabled: false}
+	require.NoError(t, s.Validate(), "disabled config should always validate")
+
+	*s = PasskeySetting{Enabled: true, RPID: ""}
+	require.Error(t, s.Validate(), "enabled config without RPID must error")
+
+	*s = PasskeySetting{Enabled: true, RPID: "wavydance.ai", RPOrigins: `["https://wavydance.ai"]`}
+	require.NoError(t, s.Validate())
+}
+
 func TestPasskeySettingRoundTrip(t *testing.T) {
 	// Registry round-trip: export → load → fields restored.
 	s := GetPasskeySetting()
