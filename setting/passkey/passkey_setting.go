@@ -3,7 +3,9 @@
 package passkey
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/songquanpeng/one-api/setting/config"
 )
@@ -46,6 +48,13 @@ func (s *PasskeySetting) Validate() error {
 	}
 	if s.RPOrigins == "" {
 		return errors.New("passkey: enabled but rp_origins is empty")
+	}
+	var origins []string
+	if err := json.Unmarshal([]byte(s.RPOrigins), &origins); err != nil {
+		return fmt.Errorf("passkey: rp_origins is not valid JSON: %w", err)
+	}
+	if len(origins) == 0 {
+		return errors.New("passkey: rp_origins parses to an empty array")
 	}
 	return nil
 }

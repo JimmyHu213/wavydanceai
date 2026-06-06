@@ -2,7 +2,6 @@ package controller
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"io"
 	"net/http"
@@ -247,9 +246,6 @@ func respondPasskeyServiceError(c *gin.Context, err error) {
 		respondError(c, err)
 	}
 }
-
-// Reserved for future credentialId Base64URL helpers; keeps the import live.
-var _ = base64.URLEncoding
 
 // BeginPasskeyLogin: POST /api/user/login/passkey/begin
 // Body: {"username":"alice"} — backend looks up the user, returns the

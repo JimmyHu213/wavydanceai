@@ -3,9 +3,7 @@ package passkey
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
@@ -236,21 +234,3 @@ func (m *Manager) FinishLogin(u *model.User, creds []model.PasskeyCredential, se
 	return matched, nil
 }
 
-// HTTPStatus is a convenience for controllers — maps known service errors
-// to HTTP codes. Unknown errors map to 500.
-func HTTPStatus(err error) int {
-	switch {
-	case err == nil:
-		return http.StatusOK
-	case errors.Is(err, ErrDisabled):
-		return http.StatusForbidden
-	case errors.Is(err, ErrNoPendingChallenge):
-		return http.StatusConflict
-	case errors.Is(err, ErrVerifyFailed), errors.Is(err, ErrSignCountRegression):
-		return http.StatusUnauthorized
-	case errors.Is(err, ErrInvalidConfig):
-		return http.StatusServiceUnavailable
-	default:
-		return http.StatusInternalServerError
-	}
-}

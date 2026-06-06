@@ -61,7 +61,8 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	if user.TwoFAEnabled || model.HasPasskey(user.Id) {
+	hasPasskey := model.HasPasskey(user.Id)
+	if user.TwoFAEnabled || hasPasskey {
 		// Password is good but we still need a second factor. Park the user
 		// id on the session and ask the frontend to finish the dance via
 		// /api/user/login/2fa or /api/user/login/2fa/passkey/*.
@@ -75,7 +76,7 @@ func Login(c *gin.Context) {
 		if user.TwoFAEnabled {
 			methods = append(methods, "totp")
 		}
-		if model.HasPasskey(user.Id) {
+		if hasPasskey {
 			methods = append(methods, "passkey")
 		}
 		c.JSON(http.StatusOK, gin.H{

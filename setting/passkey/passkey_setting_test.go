@@ -21,6 +21,12 @@ func TestValidateRejectsEnabledWithoutRPID(t *testing.T) {
 
 	*s = PasskeySetting{Enabled: true, RPID: "wavydance.ai", RPOrigins: `["https://wavydance.ai"]`}
 	require.NoError(t, s.Validate())
+
+	*s = PasskeySetting{Enabled: true, RPID: "wavydance.ai", RPOrigins: "not valid json"}
+	require.Error(t, s.Validate(), "invalid JSON should fail")
+
+	*s = PasskeySetting{Enabled: true, RPID: "wavydance.ai", RPOrigins: "[]"}
+	require.Error(t, s.Validate(), "empty origins array should fail")
 }
 
 func TestPasskeySettingRoundTrip(t *testing.T) {
