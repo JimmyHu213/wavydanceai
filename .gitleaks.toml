@@ -1,14 +1,3 @@
 [extend]
 # Extend the default ruleset so we only need to declare exceptions.
 useDefault = true
-
-[[allowlists]]
-description = "Test fixture access tokens in passkey_test.go are not real credentials"
-regexTarget = "line"
-regexes = [
-  # Matches the line context that surrounds the redacted secret in git history
-  '''AffCode.*b0b''',
-  '''bob-tok''',
-  '''bob-access-token''',
-  '''bob-admin''',
-]
