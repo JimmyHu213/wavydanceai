@@ -1,8 +1,10 @@
 package model
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 
 	"gorm.io/gorm"
 
@@ -12,6 +14,23 @@ import (
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/common/message"
 )
+
+// quotaRemindEmailTmpl is the HTML body for low-quota reminder emails.
+// Using html/template (not fmt.Sprintf + html.EscapeString) gives us
+// context-aware escaping — text nodes, attribute values and URLs each
+// get their own escape rules — so an admin-supplied ServerAddress that
+// happens to contain a quote, angle bracket or `javascript:` prefix
+// cannot break out of the markup or inject script.
+var quotaRemindEmailTmpl = template.Must(template.New("quotaRemind").Parse(`
+				<p>您好！</p>
+				<p>{{.Text}}，当前剩余额度为 <strong>{{.Remaining}}</strong>。</p>
+				<p>为了不影响您的使用，请及时充值。</p>
+				<p style="text-align: center; margin: 30px 0;">
+					<a href="{{.Link}}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">立即充值</a>
+				</p>
+				<p style="color: #666;">如果按钮无法点击，请复制以下链接到浏览器中打开：</p>
+				<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px; word-break: break-all;">{{.Link}}</p>
+			`))
 
 const (
 	TokenStatusEnabled   = 1 // don't use 0, 0 is the default value!
@@ -337,19 +356,16 @@ func sendQuotaRemindEmail(userId int, remaining int64, noMoreQuota bool) {
 		contentText = "您的额度已用尽"
 	}
 	topUpLink := fmt.Sprintf("%s/topup", config.ServerAddress)
-	content := message.EmailTemplate(
-		prompt,
-		fmt.Sprintf(`
-				<p>您好！</p>
-				<p>%s，当前剩余额度为 <strong>%d</strong>。</p>
-				<p>为了不影响您的使用，请及时充值。</p>
-				<p style="text-align: center; margin: 30px 0;">
-					<a href="%s" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">立即充值</a>
-				</p>
-				<p style="color: #666;">如果按钮无法点击，请复制以下链接到浏览器中打开：</p>
-				<p style="background-color: #f8f8f8; padding: 10px; border-radius: 4px; word-break: break-all;">%s</p>
-			`, contentText, remaining, topUpLink, topUpLink),
-	)
+	var buf bytes.Buffer
+	if err := quotaRemindEmailTmpl.Execute(&buf, struct {
+		Text      string
+		Remaining int64
+		Link      string
+	}{Text: contentText, Remaining: remaining, Link: topUpLink}); err != nil {
+		logger.SysError("failed to render quota remind email: " + err.Error())
+		return
+	}
+	content := message.EmailTemplate(prompt, buf.String())
 	if err = message.SendEmail(prompt, email, content); err != nil {
 		logger.SysError("failed to send email: " + err.Error())
 	}
