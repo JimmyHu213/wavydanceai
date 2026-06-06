@@ -57,6 +57,11 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/2fa/enable", middleware.CriticalRateLimit(), controller.Enable2FA)
 				selfRoute.POST("/2fa/disable", middleware.CriticalRateLimit(), controller.Disable2FA)
 				selfRoute.POST("/2fa/backup-codes", middleware.CriticalRateLimit(), controller.RegenerateBackupCodes)
+				selfRoute.GET("/passkey/credentials", controller.ListMyPasskeys)
+				selfRoute.POST("/passkey/credentials/register/begin", middleware.CriticalRateLimit(), controller.BeginRegisterPasskey)
+				selfRoute.POST("/passkey/credentials/register/finish", middleware.CriticalRateLimit(), controller.FinishRegisterPasskey)
+				selfRoute.PATCH("/passkey/credentials/:id", controller.RenameMyPasskey)
+				selfRoute.DELETE("/passkey/credentials/:id", controller.DeleteMyPasskey)
 				selfRoute.POST("/topup", controller.TopUp) // redemption code
 				selfRoute.GET("/topup/info", controller.GetTopupInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopups)
