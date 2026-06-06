@@ -4,7 +4,5 @@ useDefault = true
 
 [[allowlists]]
 description = "Test fixture access tokens are not real credentials"
-commits = [
-  # ebfe56a introduced bob-tok-* fixtures in passkey_test.go; renamed in 2d2d995
-  "ebfe56a9dc19c4a3f110643db4ddee4f8b387d6e",
-]
+# stopwords cause a finding to be skipped if the matched secret contains any of these substrings.
+stopwords = ["bob-tok-", "bob-admin-tok-", "bob-access-token", "bob-admin-access"]
