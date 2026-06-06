@@ -22,13 +22,15 @@ func setupCheckinTestDB(t *testing.T) {
 	LOG_DB = db
 }
 
-// resetCheckinSetting mutates the process-wide CheckinSetting singleton.
-// Tests must NOT run in parallel because of this; ordering inside one Test
-// is fine. The legacy alternative — using a typed accessor with t.Cleanup
-// to restore — was rejected as overkill for a single test file.
+// resetCheckinSetting mutates the process-wide CheckinSetting singleton
+// for the duration of one test, then restores it via t.Cleanup so later
+// tests (in this file or others importing operation_setting) don't
+// inherit the canned values.
 func resetCheckinSetting(t *testing.T) {
 	t.Helper()
 	s := operation_setting.GetCheckinSetting()
+	prev := *s
+	t.Cleanup(func() { *s = prev })
 	s.Enabled = true
 	s.DailyQuota = 100
 	s.StreakBonus = 10
@@ -161,6 +163,8 @@ func TestClaimToday_ZeroRewardConfig(t *testing.T) {
 // the tag/handling rules.
 func TestCheckinSetting_LoadFromDB(t *testing.T) {
 	s := operation_setting.GetCheckinSetting()
+	prev := *s
+	t.Cleanup(func() { *s = prev })
 	*s = operation_setting.CheckinSetting{} // reset to zero values
 
 	err := settingconfig.GlobalConfig.LoadFromDB(map[string]string{

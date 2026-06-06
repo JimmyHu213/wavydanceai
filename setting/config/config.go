@@ -15,6 +15,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -22,6 +23,19 @@ import (
 
 	"github.com/songquanpeng/one-api/common/logger"
 )
+
+// logDecodeFailure surfaces per-field decode failures that would
+// otherwise be silently skipped. Without this, an admin could save a
+// malformed dotted option, see "success" in the UI, and the runtime
+// would silently ignore it forever. We log instead of returning an
+// error so a single bad field doesn't block the whole module's load.
+func logDecodeFailure(key, kind, value string, err error) {
+	snippet := value
+	if len(snippet) > 80 {
+		snippet = snippet[:80] + "..."
+	}
+	logger.SysError(fmt.Sprintf("config: decode failed for %s field %q value %q: %s", kind, key, snippet, err.Error()))
+}
 
 // ConfigManager is the registry of typed settings modules.
 type ConfigManager struct {
@@ -244,6 +258,7 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 		case reflect.Bool:
 			boolValue, err := strconv.ParseBool(strValue)
 			if err != nil {
+				logDecodeFailure(key, "bool", strValue, err)
 				continue
 			}
 			field.SetBool(boolValue)
@@ -254,6 +269,7 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 				// tables, otherwise we'd silently zero the field on re-load.
 				floatValue, fErr := strconv.ParseFloat(strValue, 64)
 				if fErr != nil {
+					logDecodeFailure(key, "int", strValue, err)
 					continue
 				}
 				intValue = int64(floatValue)
@@ -264,6 +280,7 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 			if err != nil {
 				floatValue, fErr := strconv.ParseFloat(strValue, 64)
 				if fErr != nil || floatValue < 0 {
+					logDecodeFailure(key, "uint", strValue, err)
 					continue
 				}
 				uintValue = uint64(floatValue)
@@ -272,6 +289,7 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 		case reflect.Float32, reflect.Float64:
 			floatValue, err := strconv.ParseFloat(strValue, 64)
 			if err != nil {
+				logDecodeFailure(key, "float", strValue, err)
 				continue
 			}
 			field.SetFloat(floatValue)
@@ -283,6 +301,7 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 					field.Set(reflect.New(field.Type().Elem()))
 				}
 				if err := json.Unmarshal([]byte(strValue), field.Interface()); err != nil {
+					logDecodeFailure(key, "ptr-json", strValue, err)
 					continue
 				}
 			}
@@ -291,11 +310,13 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 			// from the new JSON). Allocate fresh so removed keys are cleared.
 			fresh := reflect.New(field.Type())
 			if err := json.Unmarshal([]byte(strValue), fresh.Interface()); err != nil {
+				logDecodeFailure(key, "map-json", strValue, err)
 				continue
 			}
 			field.Set(fresh.Elem())
 		case reflect.Slice, reflect.Struct:
 			if err := json.Unmarshal([]byte(strValue), field.Addr().Interface()); err != nil {
+				logDecodeFailure(key, "json", strValue, err)
 				continue
 			}
 		}

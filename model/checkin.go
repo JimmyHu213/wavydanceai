@@ -72,14 +72,17 @@ func getCheckinByDate(userId int, date string) (*Checkin, error) {
 // that streak; otherwise returns yesterday's streak (still "alive" — claiming
 // today continues it). Returns 0 if the chain is broken.
 func CurrentStreak(userId int) (streak int, claimedToday bool, err error) {
-	today, err := getCheckinByDate(userId, dateKey(time.Now()))
+	// Capture once so a midnight rollover between the two reads can't make
+	// "today" and "yesterday" inconsistent.
+	now := time.Now()
+	today, err := getCheckinByDate(userId, dateKey(now))
 	if err != nil {
 		return 0, false, err
 	}
 	if today != nil {
 		return today.Streak, true, nil
 	}
-	yest, err := getCheckinByDate(userId, dateKey(time.Now().AddDate(0, 0, -1)))
+	yest, err := getCheckinByDate(userId, dateKey(now.AddDate(0, 0, -1)))
 	if err != nil {
 		return 0, false, err
 	}
@@ -101,8 +104,9 @@ func ClaimToday(ctx context.Context, userId int) (rec *Checkin, alreadyClaimed b
 	if userId <= 0 {
 		return nil, false, errors.New("user_id is required")
 	}
-	today := dateKey(time.Now())
-	yesterday := dateKey(time.Now().AddDate(0, 0, -1))
+	now := time.Now()
+	today := dateKey(now)
+	yesterday := dateKey(now.AddDate(0, 0, -1))
 
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		var existing Checkin
@@ -143,9 +147,16 @@ func ClaimToday(ctx context.Context, userId int) (rec *Checkin, alreadyClaimed b
 			return nil
 		}
 		if reward > 0 {
-			if e := tx.Model(&User{}).Where("id = ?", userId).
-				Update("quota", gorm.Expr("quota + ?", reward)).Error; e != nil {
-				return e
+			// A concurrent user delete would leave the checkin row inserted
+			// but the quota uncredited. Require exactly one row updated so
+			// the whole tx rolls back instead of silently shorting the user.
+			res := tx.Model(&User{}).Where("id = ?", userId).
+				Update("quota", gorm.Expr("quota + ?", reward))
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected != 1 {
+				return fmt.Errorf("checkin: credit quota affected %d rows for user %d", res.RowsAffected, userId)
 			}
 		}
 		rec = &nc
