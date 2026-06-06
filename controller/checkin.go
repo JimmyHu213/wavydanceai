@@ -38,7 +38,7 @@ func buildCheckinInfo(userId int) (*checkinInfo, error) {
 	if checkedToday {
 		previewStreak = streak
 	}
-	info.TodayReward = previewRewardForStreak(previewStreak)
+	info.TodayReward = model.PreviewReward(previewStreak)
 	if checkedToday {
 		if t, err := model.GetTodayCheckin(userId); err == nil && t != nil {
 			info.LastCheckinDate = t.Date
@@ -46,24 +46,6 @@ func buildCheckinInfo(userId int) (*checkinInfo, error) {
 		}
 	}
 	return info, nil
-}
-
-// previewRewardForStreak mirrors the model-side formula. We duplicate
-// rather than export it because GET /info must answer without writing,
-// and routing through the model layer would muddy the read/write split.
-func previewRewardForStreak(streak int) int64 {
-	s := operation_setting.GetCheckinSetting()
-	if streak < 1 {
-		streak = 1
-	}
-	extra := streak - 1
-	if cap := s.StreakCap; cap > 0 && streak > cap {
-		extra = cap - 1
-	}
-	if extra < 0 {
-		extra = 0
-	}
-	return s.DailyQuota + int64(extra)*s.StreakBonus
 }
 
 // GetCheckinInfo — GET /api/user/checkin/info

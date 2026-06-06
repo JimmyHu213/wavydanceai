@@ -31,16 +31,18 @@ func dateKey(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-// estimateReward applies the streak bonus formula. Pulled out so the GET
-// /info endpoint can preview tomorrow's reward without writing.
-func estimateReward(streak int) int64 {
+// PreviewReward applies the streak bonus formula. Single source of truth
+// for both the write path (ClaimToday) and the read path (GET /info, which
+// shows tomorrow's reward before the user claims). Pure function — no DB
+// access — so controllers can call it directly.
+func PreviewReward(streak int) int64 {
 	s := operation_setting.GetCheckinSetting()
 	if streak < 1 {
 		streak = 1
 	}
 	extraDays := streak - 1
-	if cap := s.StreakCap; cap > 0 && streak > cap {
-		extraDays = cap - 1
+	if streakCap := s.StreakCap; streakCap > 0 && streak > streakCap {
+		extraDays = streakCap - 1
 	}
 	if extraDays < 0 {
 		extraDays = 0
@@ -92,7 +94,9 @@ func CurrentStreak(userId int) (streak int, claimedToday bool, err error) {
 //   - Otherwise: inserts the row, credits quota in the same tx, writes log.
 //
 // The (user_id, date) unique index makes concurrent double-claims safe —
-// the loser sees a unique violation and we report alreadyClaimed=true.
+// the loser sees a unique violation, we re-fetch, and report
+// alreadyClaimed=true. Non-unique-violation errors propagate so transient
+// DB failures don't get silently reported as "already checked in".
 func ClaimToday(ctx context.Context, userId int) (rec *Checkin, alreadyClaimed bool, err error) {
 	if userId <= 0 {
 		return nil, false, errors.New("user_id is required")
@@ -118,7 +122,7 @@ func ClaimToday(ctx context.Context, userId int) (rec *Checkin, alreadyClaimed b
 			return e
 		}
 
-		reward := estimateReward(streak)
+		reward := PreviewReward(streak)
 		nc := Checkin{
 			UserId:    userId,
 			Date:      today,
@@ -127,13 +131,16 @@ func ClaimToday(ctx context.Context, userId int) (rec *Checkin, alreadyClaimed b
 			CreatedAt: helper.GetTimestamp(),
 		}
 		if e := tx.Create(&nc).Error; e != nil {
-			var again Checkin
-			if e2 := tx.Where("user_id = ? AND date = ?", userId, today).First(&again).Error; e2 == nil {
-				alreadyClaimed = true
-				rec = &again
-				return nil
+			if !errors.Is(e, gorm.ErrDuplicatedKey) {
+				return e
 			}
-			return e
+			var again Checkin
+			if e2 := tx.Where("user_id = ? AND date = ?", userId, today).First(&again).Error; e2 != nil {
+				return e
+			}
+			alreadyClaimed = true
+			rec = &again
+			return nil
 		}
 		if reward > 0 {
 			if e := tx.Model(&User{}).Where("id = ?", userId).
