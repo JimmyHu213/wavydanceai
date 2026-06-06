@@ -76,18 +76,21 @@ sub-options:
 
 ### Backend addition (single endpoint)
 
+```text
+GET /api/user/self/playground_token   →  { key: "<48-char raw key>" }
 ```
-GET /api/user/self/playground_token   →  { key: "sk-..." }
-```
+
+The endpoint returns the raw key without an `sk-` prefix — the frontend
+prepends `sk-` when building the `Authorization` header (the middleware
+strips it again, see `middleware/auth.go`).
 
 - Auth: session cookie via `UserAuth()` (same as `/api/user/self`).
 - Behavior: look up a token belonging to this user with name
   `__playground__` (reserved, leading underscores so it sorts to the top
   and is obviously system-managed). If absent, create one with:
   - `Name = "__playground__"`
-  - `RemainQuota = -1` (unlimited — the user's own group quota is what
-    actually gates spend; this token's limit is a no-op)
-  - `UnlimitedQuota = true`
+  - `RemainQuota = 0`, `UnlimitedQuota = true` — the token's own cap is
+    a no-op; the user's group quota is what actually gates spend.
   - `ExpiredTime = -1` (never)
   - `Status = TokenStatusEnabled`
   - `Group = ""` (inherit user group)
@@ -137,7 +140,7 @@ Visible to all users (no `minRole`).
 
 Single page, centered grid of 3 cards:
 
-```
+```text
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
 │ 💬 Chat       │  │ 🖼  Image     │  │ 🎬 Video      │
 │ Talk to LLMs  │  │ Generate     │  │ Generate     │
@@ -154,7 +157,7 @@ soon" pill in the corner.
 
 ### `/console/playground/chat` — three-pane layout
 
-```
+```text
 ┌────────────┬──────────────────────────────────┬────────────────┐
 │ Sessions   │ Messages                         │ Parameters     │
 │ (left)     │ (middle, scroll)                 │ (right)        │
@@ -195,7 +198,7 @@ soon" pill in the corner.
 
 ## 5. File layout
 
-```
+```text
 web/wavy/src/
 ├── routes/
 │   ├── console.playground.tsx            (layout — modality picker on index)
@@ -289,7 +292,7 @@ const res = await fetch(`${API_BASE}/v1/chat/completions`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${playgroundToken}`,
+    'Authorization': `Bearer sk-${playgroundToken}`,
     'Accept': 'text/event-stream',
   },
   body: JSON.stringify({ model, messages, stream: true, ...params }),
@@ -304,9 +307,9 @@ strip the `/api` suffix).
 
 ## 9. i18n keys (en + zh)
 
-Add to both `web/wavy/src/locales/en.json` and `zh.json`:
+Add to both `web/wavy/src/locales/en.json` and `web/wavy/src/locales/zh-CN.json`:
 
-```
+```text
 console.nav.playground = "Playground" / "Playground"
 console.playground.title = "Playground" / "Playground"
 console.playground.subtitle = "Try any model with your own quota" / "用你自己的额度来试任意模型"
@@ -370,7 +373,7 @@ Single PR — the surface is small enough. Branch:
 10. `components/playground/chat/useChatStream.ts` — abortable SSE hook.
 11. `components/console/Sidebar.tsx` — add `Playground` entry, import
     `Sparkles` from lucide-react.
-12. `locales/en.json`, `locales/zh.json` — add the strings in §9.
+12. `locales/en.json`, `locales/zh-CN.json` — add the strings in §9.
 13. Tests (co-located, follow `TESTING.md`):
     - `useChatStream.test.ts` — parses SSE chunks correctly, aborts on
       signal.

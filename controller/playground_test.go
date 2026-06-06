@@ -79,7 +79,7 @@ func TestGetPlaygroundToken_Idempotent(t *testing.T) {
 func TestGetPlaygroundToken_RejectsUnauthenticated(t *testing.T) {
 	setupPlaygroundTest(t)
 	w, body := callPlaygroundToken(t, 0) // no ctxkey.Id set → 0
-	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
 	require.Equal(t, false, body["success"])
 }
 

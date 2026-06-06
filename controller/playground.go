@@ -124,7 +124,7 @@ func isChatModel(name string) bool {
 func GetPlaygroundToken(c *gin.Context) {
 	userId := c.GetInt(ctxkey.Id)
 	if userId == 0 {
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "unauthenticated",
 		})
