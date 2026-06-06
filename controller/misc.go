@@ -12,6 +12,7 @@ import (
 	"github.com/songquanpeng/one-api/common/message"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/setting/auth_setting"
+	"github.com/songquanpeng/one-api/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,6 +48,9 @@ func GetStatus(c *gin.Context) {
 			"oidc_userinfo_endpoint":      config.OidcUserinfoEndpoint,
 			"google_oauth":                auth_setting.GetGoogleSetting().Enabled,
 			"google_client_id":            auth_setting.GetGoogleSetting().ClientId,
+			// Multi-provider OIDC: list of enabled IdPs the frontend can show
+			// as login buttons. Secrets are stripped by EnabledOIDCProviders.
+			"oidc_providers":              system_setting.EnabledOIDCProviders(),
 		},
 	})
 	return

@@ -24,6 +24,9 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), controller.ResetPassword)
 		apiRouter.GET("/oauth/github", middleware.CriticalRateLimit(), auth.GitHubOAuth)
 		apiRouter.GET("/oauth/oidc", middleware.CriticalRateLimit(), auth.OidcAuth)
+		// Multi-provider OIDC. :provider matches a Name in OIDCSettings.Providers.
+		// The legacy singleton /oauth/oidc above stays as-is for backward compat.
+		apiRouter.GET("/oauth/oidc/:provider", middleware.CriticalRateLimit(), auth.OIDCMultiAuth)
 		apiRouter.GET("/oauth/google", middleware.CriticalRateLimit(), auth.GoogleAuth)
 		apiRouter.GET("/oauth/lark", middleware.CriticalRateLimit(), auth.LarkOAuth)
 		apiRouter.GET("/oauth/state", middleware.CriticalRateLimit(), auth.GenerateOAuthCode)
