@@ -43,6 +43,8 @@ func SetApiRouter(router *gin.Engine) {
 			userRoute.POST("/login/2fa", middleware.CriticalRateLimit(), controller.Verify2FALogin)
 			userRoute.POST("/login/passkey/begin", middleware.CriticalRateLimit(), controller.BeginPasskeyLogin)
 			userRoute.POST("/login/passkey/finish", middleware.CriticalRateLimit(), controller.FinishPasskeyLogin)
+			userRoute.POST("/login/2fa/passkey/begin", middleware.CriticalRateLimit(), controller.BeginPasskeySecondFactor)
+			userRoute.POST("/login/2fa/passkey/finish", middleware.CriticalRateLimit(), controller.FinishPasskeySecondFactor)
 			userRoute.GET("/logout", controller.Logout)
 
 			selfRoute := userRoute.Group("/")

@@ -260,3 +260,66 @@ func TestPasswordlessUnknownUserDoesNotEnumerate(t *testing.T) {
 	engine.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code, "anti-enum: returns options even for unknown user")
 }
+
+func TestSecondFactorPasskeyAfterPassword(t *testing.T) {
+	engine, u, auth, cred, rp := setupPasskeyCtrlTest(t)
+	engine.POST("/api/user/login/2fa/passkey/begin", BeginPasskeySecondFactor)
+	engine.POST("/api/user/login/2fa/passkey/finish", FinishPasskeySecondFactor)
+
+	// Register a passkey credential for the user.
+	regBegin := httptest.NewRequest(http.MethodPost, "/api/user/passkey/credentials/register/begin", bytes.NewReader([]byte(`{"name":"sf"}`)))
+	regBeginRec := httptest.NewRecorder()
+	engine.ServeHTTP(regBeginRec, regBegin)
+	require.Equal(t, http.StatusOK, regBeginRec.Code, regBeginRec.Body.String())
+	regCookie := regBeginRec.Result().Header.Get("Set-Cookie")
+	var rEnv struct{ Data json.RawMessage `json:"data"` }
+	require.NoError(t, json.Unmarshal(regBeginRec.Body.Bytes(), &rEnv))
+	attestationOptions, err := vwa.ParseAttestationOptions(string(rEnv.Data))
+	require.NoError(t, err)
+	att := vwa.CreateAttestationResponse(rp, auth, cred, *attestationOptions)
+	regFinish := httptest.NewRequest(http.MethodPost, "/api/user/passkey/credentials/register/finish", bytes.NewReader([]byte(att)))
+	regFinish.Header.Set("Cookie", regCookie)
+	regFinishRec := httptest.NewRecorder()
+	engine.ServeHTTP(regFinishRec, regFinish)
+	require.Equal(t, http.StatusOK, regFinishRec.Code, regFinishRec.Body.String())
+
+	// Prepare authenticator for login assertion.
+	cred.Counter = 1
+	auth.AddCredential(cred)
+	auth.Options.UserHandle = webAuthnIDCtrl(u)
+
+	// Simulate password-step completion: set sessionKeyPending2FAUserId via
+	// an inline middleware on a synthetic endpoint.
+	engine.GET("/test/seed-pending-2fa", func(c *gin.Context) {
+		sess := sessions.Default(c)
+		sess.Set(sessionKeyPending2FAUserId, u.Id)
+		_ = sess.Save()
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	seedReq := httptest.NewRequest(http.MethodGet, "/test/seed-pending-2fa", nil)
+	seedRec := httptest.NewRecorder()
+	engine.ServeHTTP(seedRec, seedReq)
+	pendingCookie := seedRec.Result().Header.Get("Set-Cookie")
+
+	sfBegin := httptest.NewRequest(http.MethodPost, "/api/user/login/2fa/passkey/begin", nil)
+	sfBegin.Header.Set("Cookie", pendingCookie)
+	sfBeginRec := httptest.NewRecorder()
+	engine.ServeHTTP(sfBeginRec, sfBegin)
+	require.Equal(t, http.StatusOK, sfBeginRec.Code, sfBeginRec.Body.String())
+	sfCookie := sfBeginRec.Result().Header.Get("Set-Cookie")
+	var sfEnv struct{ Data json.RawMessage `json:"data"` }
+	require.NoError(t, json.Unmarshal(sfBeginRec.Body.Bytes(), &sfEnv))
+	assertionOptions, err := vwa.ParseAssertionOptions(string(sfEnv.Data))
+	require.NoError(t, err)
+	assertion := vwa.CreateAssertionResponse(rp, auth, cred, *assertionOptions)
+
+	sfFinish := httptest.NewRequest(http.MethodPost, "/api/user/login/2fa/passkey/finish", bytes.NewReader([]byte(assertion)))
+	sfFinish.Header.Set("Cookie", sfCookie)
+	sfFinishRec := httptest.NewRecorder()
+	engine.ServeHTTP(sfFinishRec, sfFinish)
+	require.Equal(t, http.StatusOK, sfFinishRec.Code, sfFinishRec.Body.String())
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(sfFinishRec.Body.Bytes(), &resp))
+	require.True(t, resp["success"].(bool))
+}

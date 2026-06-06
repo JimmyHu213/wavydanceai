@@ -61,19 +61,30 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	if user.TwoFAEnabled {
+	if user.TwoFAEnabled || model.HasPasskey(user.Id) {
 		// Password is good but we still need a second factor. Park the user
 		// id on the session and ask the frontend to finish the dance via
-		// /api/user/login/2fa.
+		// /api/user/login/2fa or /api/user/login/2fa/passkey/*.
 		session := sessions.Default(c)
 		session.Set(sessionKeyPending2FAUserId, user.Id)
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 			return
 		}
+		methods := make([]string, 0, 2)
+		if user.TwoFAEnabled {
+			methods = append(methods, "totp")
+		}
+		if model.HasPasskey(user.Id) {
+			methods = append(methods, "passkey")
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"data":    gin.H{"two_fa_required": true},
+			"data": gin.H{
+				"two_fa_required":     true, // deprecated, kept for one release
+				"two_factor_required": true,
+				"methods":             methods,
+			},
 		})
 		return
 	}

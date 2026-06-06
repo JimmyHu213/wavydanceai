@@ -343,3 +343,91 @@ func FinishPasskeyLogin(c *gin.Context) {
 	_ = sess.Save()
 	SetupLogin(user, c)
 }
+
+// BeginPasskeySecondFactor: POST /api/user/login/2fa/passkey/begin
+// Requires the password step to have parked a pending_2fa_user_id on the
+// session. Reuses the same session keys as passwordless login from there.
+func BeginPasskeySecondFactor(c *gin.Context) {
+	if !ensurePasskeyEnabled(c) {
+		return
+	}
+	sess := sessions.Default(c)
+	uid, _ := sess.Get(sessionKeyPending2FAUserId).(int)
+	if uid == 0 {
+		respondError(c, errNoPending2FA)
+		return
+	}
+	user, err := model.GetUserById(uid, false)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	creds, err := model.ListPasskeysByUserId(uid)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	if len(creds) == 0 {
+		respondError(c, errPasskeyNotFound)
+		return
+	}
+	mgr, err := passkey.NewManager()
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	options, blob, err := mgr.BeginLogin(user, creds)
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	sess.Set(sessionKeyPasskeyLoginChallenge, blob)
+	sess.Set(sessionKeyPasskeyLoginUserId, uid)
+	if err := sess.Save(); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.Data(http.StatusOK, "application/json", wrapData(options))
+}
+
+// FinishPasskeySecondFactor: POST /api/user/login/2fa/passkey/finish
+// On success clears both pending_2fa_user_id and the passkey login keys
+// before calling SetupLogin. On failure leaves pending_2fa_user_id so the
+// user can fall back to TOTP via /login/2fa.
+func FinishPasskeySecondFactor(c *gin.Context) {
+	if !ensurePasskeyEnabled(c) {
+		return
+	}
+	sess := sessions.Default(c)
+	uid, _ := sess.Get(sessionKeyPending2FAUserId).(int)
+	blob, _ := sess.Get(sessionKeyPasskeyLoginChallenge).([]byte)
+	if uid == 0 || len(blob) == 0 {
+		respondError(c, errNoPendingPasskeyChal)
+		return
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	user, err := model.GetUserById(uid, false)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	creds, _ := model.ListPasskeysByUserId(uid)
+	mgr, err := passkey.NewManager()
+	if err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	if _, err := mgr.FinishLogin(user, creds, blob, body); err != nil {
+		respondPasskeyServiceError(c, err)
+		return
+	}
+	sess.Delete(sessionKeyPending2FAUserId)
+	sess.Delete(sessionKeyPasskeyLoginChallenge)
+	sess.Delete(sessionKeyPasskeyLoginUserId)
+	_ = sess.Save()
+	SetupLogin(user, c)
+}
