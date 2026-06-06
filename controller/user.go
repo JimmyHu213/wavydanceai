@@ -278,10 +278,32 @@ func GetUser(c *gin.Context) {
 		})
 		return
 	}
+	passkeys, _ := model.ListPasskeysByUserId(user.Id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user,
+		"data": gin.H{
+			"id":             user.Id,
+			"username":       user.Username,
+			"display_name":   user.DisplayName,
+			"role":           user.Role,
+			"status":         user.Status,
+			"email":          user.Email,
+			"github_id":      user.GitHubId,
+			"wechat_id":      user.WeChatId,
+			"lark_id":        user.LarkId,
+			"oidc_id":        user.OidcId,
+			"google_id":      user.GoogleId,
+			"two_fa_enabled": user.TwoFAEnabled,
+			"access_token":   user.AccessToken,
+			"quota":          user.Quota,
+			"used_quota":     user.UsedQuota,
+			"request_count":  user.RequestCount,
+			"group":          user.Group,
+			"aff_code":       user.AffCode,
+			"inviter_id":     user.InviterId,
+			"passkeys":       toPasskeyViews(passkeys),
+		},
 	})
 	return
 }

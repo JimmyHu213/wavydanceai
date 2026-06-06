@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -322,4 +323,50 @@ func TestSecondFactorPasskeyAfterPassword(t *testing.T) {
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(sfFinishRec.Body.Bytes(), &resp))
 	require.True(t, resp["success"].(bool))
+}
+
+func TestAdminEmbedsPasskeysInGetUser(t *testing.T) {
+	engine, u, _, _, _ := setupPasskeyCtrlTest(t)
+	adminStub := func(c *gin.Context) {
+		c.Set(ctxkey.Id, u.Id)
+		c.Set(ctxkey.Role, model.RoleRootUser)
+		c.Next()
+	}
+	engine.GET("/api/user/:id", adminStub, GetUser)
+	engine.DELETE("/api/user/:id/passkeys/:credId", adminStub, AdminDeleteUserPasskey)
+	engine.DELETE("/api/user/:id/passkeys", adminStub, AdminClearUserPasskeys)
+
+	other := &model.User{Username: "bob-admin-test", Password: "x", Status: model.UserStatusEnabled, Role: 1, AccessToken: "bob-admin-tok-1234567890", AffCode: "b0b2"}
+	require.NoError(t, model.DB.Create(other).Error)
+	require.NoError(t, model.CreatePasskey(&model.PasskeyCredential{UserId: other.Id, CredentialId: []byte{1}, PublicKey: []byte{1}, Name: "k1", CreatedAt: time.Now().Unix()}))
+	require.NoError(t, model.CreatePasskey(&model.PasskeyCredential{UserId: other.Id, CredentialId: []byte{2}, PublicKey: []byte{2}, Name: "k2", CreatedAt: time.Now().Unix()}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/user/"+strconv.Itoa(other.Id), nil)
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var env struct {
+		Success bool           `json:"success"`
+		Data    map[string]any `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &env))
+	pks, ok := env.Data["passkeys"].([]any)
+	require.True(t, ok, "passkeys field missing: %v", env.Data)
+	require.Len(t, pks, 2)
+
+	creds, _ := model.ListPasskeysByUserId(other.Id)
+	delReq := httptest.NewRequest(http.MethodDelete, "/api/user/"+strconv.Itoa(other.Id)+"/passkeys/"+strconv.Itoa(creds[0].Id), nil)
+	delW := httptest.NewRecorder()
+	engine.ServeHTTP(delW, delReq)
+	require.Equal(t, http.StatusOK, delW.Code)
+	creds2, _ := model.ListPasskeysByUserId(other.Id)
+	require.Len(t, creds2, 1)
+
+	clearReq := httptest.NewRequest(http.MethodDelete, "/api/user/"+strconv.Itoa(other.Id)+"/passkeys", nil)
+	clearW := httptest.NewRecorder()
+	engine.ServeHTTP(clearW, clearReq)
+	require.Equal(t, http.StatusOK, clearW.Code)
+	creds3, _ := model.ListPasskeysByUserId(other.Id)
+	require.Empty(t, creds3)
 }

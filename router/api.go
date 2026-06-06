@@ -90,6 +90,8 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.DELETE("/:id", controller.DeleteUser)
 				adminRoute.GET("/topup", controller.AdminListTopups)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopup)
+				adminRoute.DELETE("/:id/passkeys/:credId", controller.AdminDeleteUserPasskey)
+				adminRoute.DELETE("/:id/passkeys", controller.AdminClearUserPasskeys)
 			}
 		}
 		optionRoute := apiRouter.Group("/option")
