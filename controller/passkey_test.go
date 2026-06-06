@@ -146,7 +146,7 @@ func TestRenameAndDelete(t *testing.T) {
 
 func TestDeleteForeignReturns404(t *testing.T) {
 	engine, _, _, _, _ := setupPasskeyCtrlTest(t)
-	other := &model.User{Username: "bob", Password: "x", Status: model.UserStatusEnabled, Role: 1, AccessToken: "bob-tok-1234567890123456", AffCode: "b0b1"}
+	other := &model.User{Username: "bob", Password: "x", Status: model.UserStatusEnabled, Role: 1, AccessToken: "bob-access-token-test", AffCode: "b0b1"}
 	require.NoError(t, model.DB.Create(other).Error)
 	require.NoError(t, model.CreatePasskey(&model.PasskeyCredential{UserId: other.Id, CredentialId: []byte{0xff}, PublicKey: []byte{1}, CreatedAt: time.Now().Unix()}))
 
@@ -336,7 +336,7 @@ func TestAdminEmbedsPasskeysInGetUser(t *testing.T) {
 	engine.DELETE("/api/user/:id/passkeys/:credId", adminStub, AdminDeleteUserPasskey)
 	engine.DELETE("/api/user/:id/passkeys", adminStub, AdminClearUserPasskeys)
 
-	other := &model.User{Username: "bob-admin-test", Password: "x", Status: model.UserStatusEnabled, Role: 1, AccessToken: "bob-admin-tok-1234567890", AffCode: "b0b2"}
+	other := &model.User{Username: "bob-admin-test", Password: "x", Status: model.UserStatusEnabled, Role: 1, AccessToken: "bob-admin-access-token", AffCode: "b0b2"}
 	require.NoError(t, model.DB.Create(other).Error)
 	require.NoError(t, model.CreatePasskey(&model.PasskeyCredential{UserId: other.Id, CredentialId: []byte{1}, PublicKey: []byte{1}, Name: "k1", CreatedAt: time.Now().Unix()}))
 	require.NoError(t, model.CreatePasskey(&model.PasskeyCredential{UserId: other.Id, CredentialId: []byte{2}, PublicKey: []byte{2}, Name: "k2", CreatedAt: time.Now().Unix()}))

@@ -12,11 +12,11 @@ import (
 type PasskeyCredential struct {
 	Id           int    `json:"id" gorm:"primaryKey"`
 	UserId       int    `json:"user_id" gorm:"index;not null"`
-	CredentialId []byte `json:"-" gorm:"column:credential_id;type:blob;uniqueIndex;not null"`
-	PublicKey    []byte `json:"-" gorm:"type:blob;not null"`
+	CredentialId []byte `json:"-" gorm:"column:credential_id;uniqueIndex;not null"`
+	PublicKey    []byte `json:"-" gorm:"not null"`
 	SignCount    uint32 `json:"sign_count" gorm:"default:0"`
 	Transports   string `json:"transports" gorm:"type:varchar(128)"`
-	AAGUID       []byte `json:"-" gorm:"type:blob"`
+	AAGUID       []byte `json:"-"`
 	Name         string `json:"name" gorm:"type:varchar(64)"`
 	CreatedAt    int64  `json:"created_at" gorm:"bigint"`
 	LastUsedAt   int64  `json:"last_used_at" gorm:"bigint;default:0"`

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -227,13 +228,7 @@ func DeleteMyPasskey(c *gin.Context) {
 // wrapData returns `{"success":true,"data":<raw JSON>}` using a manual
 // encode so we don't double-marshal the options blob.
 func wrapData(raw []byte) []byte {
-	prefix := []byte(`{"success":true,"data":`)
-	suffix := []byte(`}`)
-	out := make([]byte, 0, len(prefix)+len(raw)+len(suffix))
-	out = append(out, prefix...)
-	out = append(out, raw...)
-	out = append(out, suffix...)
-	return out
+	return bytes.Join([][]byte{[]byte(`{"success":true,"data":`), raw, []byte(`}`)}, nil)
 }
 
 // respondPasskeyServiceError translates service-layer sentinels to typed
