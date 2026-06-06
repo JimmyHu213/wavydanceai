@@ -3,6 +3,8 @@
 useDefault = true
 
 [[allowlists]]
-description = "Test fixture access tokens in passkey_test.go are not real credentials"
-paths = ['''controller/passkey_test\.go''']
-regexes = ['''bob-tok-''', '''bob-admin-tok-''']
+description = "Test fixture access tokens are not real credentials"
+commits = [
+  # ebfe56a introduced bob-tok-* fixtures in passkey_test.go; renamed in 2d2d995
+  "ebfe56a9dc19c4a3f110643db4ddee4f8b387d6e",
+]
