@@ -17,11 +17,13 @@ import (
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/controller"
 	"github.com/songquanpeng/one-api/model"
+	"github.com/songquanpeng/one-api/setting/auth_setting"
 )
 
 // Google OAuth — dedicated handler so admins see "Google" in the UI and can
 // run a separate generic OIDC provider in parallel. Endpoints are hardcoded;
-// the only configurable bits are GoogleClientId / Secret / Enabled.
+// only ClientId / ClientSecret / Enabled are runtime-configurable, owned by
+// setting/auth_setting/google_setting.go.
 //
 // Spec: https://developers.google.com/identity/protocols/oauth2/openid-connect
 
@@ -53,9 +55,10 @@ func getGoogleUserInfoByCode(code string) (*googleUserInfo, error) {
 	if code == "" {
 		return nil, errors.New("无效的参数")
 	}
+	gs := auth_setting.GetGoogleSetting()
 	form := url.Values{}
-	form.Set("client_id", config.GoogleClientId)
-	form.Set("client_secret", config.GoogleClientSecret)
+	form.Set("client_id", gs.ClientId)
+	form.Set("client_secret", gs.ClientSecret)
 	form.Set("code", code)
 	form.Set("grant_type", "authorization_code")
 	form.Set("redirect_uri", fmt.Sprintf("%s/oauth/google", config.ServerAddress))
@@ -128,7 +131,7 @@ func GoogleAuth(c *gin.Context) {
 		GoogleBind(c)
 		return
 	}
-	if !config.GoogleEnabled {
+	if !auth_setting.GetGoogleSetting().Enabled {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "管理员未开启通过 Google 登录及注册",
@@ -203,7 +206,7 @@ func generatedUsernameFromGoogle(gu *googleUserInfo) string {
 
 // GoogleBind links a Google identity to a signed-in user.
 func GoogleBind(c *gin.Context) {
-	if !config.GoogleEnabled {
+	if !auth_setting.GetGoogleSetting().Enabled {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "管理员未开启通过 Google 登录及注册",

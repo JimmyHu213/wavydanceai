@@ -79,13 +79,6 @@ var OidcAuthorizationEndpoint = ""
 var OidcTokenEndpoint = ""
 var OidcUserinfoEndpoint = ""
 
-// Google OAuth — dedicated handler so admin can run Google AND a separate
-// OIDC IdP at the same time. Endpoints are hardcoded in controller/auth/google.go;
-// only the client id/secret + enable flag are configurable.
-var GoogleEnabled = false
-var GoogleClientId = ""
-var GoogleClientSecret = ""
-
 var WeChatServerAddress = ""
 var WeChatServerToken = ""
 var WeChatAccountQRCodeImageURL = ""
