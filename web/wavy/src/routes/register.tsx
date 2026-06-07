@@ -7,6 +7,7 @@ import { authService } from '@/lib/services/auth'
 import { clearSessionCache, getSession } from '@/lib/session'
 import { ApiError } from '@/lib/api'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
+import { checkPassword, PASSWORD_MAX } from '@/lib/password'
 import { BrandMark } from '@/components/BrandMark'
 
 export const Route = createFileRoute('/register')({
@@ -31,14 +32,14 @@ function RegisterPage() {
 
   const emailValid = email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const mismatch = confirm.length > 0 && password !== confirm
-  const tooShort = password.length > 0 && password.length < 8
+  const pwIssue = password.length > 0 ? checkPassword(password) : null
   const canSubmit =
-    username.length >= 3 && password.length >= 8 && emailValid && !mismatch && !loading
+    username.length >= 3 && pwIssue === null && emailValid && !mismatch && !loading
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErr(null)
-    if (mismatch || tooShort || !emailValid) return
+    if (mismatch || pwIssue !== null || !emailValid) return
     setLoading(true)
     try {
       await authService.register({
@@ -110,8 +111,9 @@ function RegisterPage() {
             value={password}
             onChange={setPassword}
             autoComplete="new-password"
-            hint={tooShort ? t('register.passwordShort') : t('register.passwordHint')}
-            tone={tooShort ? 'warn' : 'muted'}
+            maxLength={PASSWORD_MAX}
+            hint={pwIssue ? t(`register.password_${pwIssue}`) : t('register.passwordHint')}
+            tone={pwIssue ? 'warn' : 'muted'}
           />
           <Field
             label={t('register.confirmPassword')}
@@ -155,6 +157,7 @@ function Field({
   autoFocus,
   hint,
   tone = 'muted',
+  maxLength,
 }: {
   label: string
   value: string
@@ -164,6 +167,7 @@ function Field({
   autoFocus?: boolean
   hint?: string
   tone?: 'muted' | 'warn'
+  maxLength?: number
 }) {
   return (
     <label className="mb-4 block">
@@ -176,6 +180,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         autoFocus={autoFocus}
+        maxLength={maxLength}
         className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--bg2)] px-3 py-2.5 text-sm text-[color:var(--text)] placeholder:text-[color:var(--muted)]/70 transition focus:border-[color:var(--cyan)] focus:outline-none focus:ring-2 focus:ring-[color:var(--cyan)]/20"
       />
       {hint && (
