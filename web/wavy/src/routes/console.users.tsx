@@ -337,7 +337,7 @@ function CreateUserDialog({ onClose, onCreated }: { onClose: () => void; onCreat
         <h2 className="mb-6 font-display text-xl font-bold tracking-[-0.5px]">{t('users.newUser')}</h2>
 
         <DialogField label={t('users.col.username')} value={username} onChange={setUsername} autoFocus />
-        <DialogField label="Password" type="password" value={password} onChange={setPassword} maxLength={PASSWORD_MAX} hint={t('register.passwordHint')} />
+        <DialogField label={t('userDialog.field.password')} type="password" value={password} onChange={setPassword} maxLength={PASSWORD_MAX} hint={t('register.passwordHint')} />
         <DialogField label="Display name" value={displayName} onChange={setDisplayName} optional />
 
         {err && (

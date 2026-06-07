@@ -156,9 +156,10 @@ function ChangePasswordCard({ username }: { username: string }) {
     onError: (e) => setErr(e instanceof ApiError ? e.message : 'change failed'),
   })
 
-  const pwIssue = pw.length > 0 ? checkPassword(pw) : null
+  const pwIssue = checkPassword(pw)
+  const pwIssueForHint = pw.length > 0 ? pwIssue : null
   const mismatch = pw.length > 0 && confirm.length > 0 && pw !== confirm
-  const canSubmit = pwIssue === null && pw === confirm
+  const canSubmit = pw.length > 0 && pwIssue === null && pw === confirm
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] shadow-[var(--shadow-jelly)]">
@@ -197,9 +198,9 @@ function ChangePasswordCard({ username }: { username: string }) {
           />
         </div>
 
-        {(pwIssue || mismatch) && (
+        {(pwIssueForHint || mismatch) && (
           <div className="mb-4 rounded-lg border border-[color:var(--coral)]/30 bg-[color:var(--coral)]/8 px-3 py-2 text-xs text-[color:var(--coral)]">
-            {pwIssue ? t(`register.password_${pwIssue}`) : t('profile.password.errMismatch')}
+            {pwIssueForHint ? t(`register.password_${pwIssueForHint}`) : t('profile.password.errMismatch')}
           </div>
         )}
 

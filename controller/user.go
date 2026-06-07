@@ -646,6 +646,13 @@ func CreateUser(c *gin.Context) {
 		})
 		return
 	}
+	if !common.IsPasswordComplexEnough(user.Password) {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": i18n.Translate(c, "invalid_password_complexity"),
+		})
+		return
+	}
 	if user.DisplayName == "" {
 		user.DisplayName = user.Username
 	}

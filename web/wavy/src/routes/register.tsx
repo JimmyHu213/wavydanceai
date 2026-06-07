@@ -32,7 +32,11 @@ function RegisterPage() {
 
   const emailValid = email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const mismatch = confirm.length > 0 && password !== confirm
-  const pwIssue = password.length > 0 ? checkPassword(password) : null
+  // Always evaluate against the actual password so an empty field can't slip
+  // past `pwIssue === null`. Show the hint only after the user has started
+  // typing, though, so the field doesn't shout at them on first render.
+  const pwIssue = checkPassword(password)
+  const pwIssueForHint = password.length > 0 ? pwIssue : null
   const canSubmit =
     username.length >= 3 && pwIssue === null && emailValid && !mismatch && !loading
 
@@ -112,8 +116,8 @@ function RegisterPage() {
             onChange={setPassword}
             autoComplete="new-password"
             maxLength={PASSWORD_MAX}
-            hint={pwIssue ? t(`register.password_${pwIssue}`) : t('register.passwordHint')}
-            tone={pwIssue ? 'warn' : 'muted'}
+            hint={pwIssueForHint ? t(`register.password_${pwIssueForHint}`) : t('register.passwordHint')}
+            tone={pwIssueForHint ? 'warn' : 'muted'}
           />
           <Field
             label={t('register.confirmPassword')}

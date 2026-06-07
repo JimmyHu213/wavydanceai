@@ -2,6 +2,7 @@ package common
 
 import (
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -13,12 +14,13 @@ func init() {
 }
 
 // IsPasswordComplexEnough enforces the user-facing password complexity rule:
-// length 8–24, must contain at least one letter AND one digit. Length is
-// also enforced by the `validate:"min=8,max=24"` struct tag on User.Password;
-// we re-check here so callers don't depend on tag ordering or on Validate.Struct
-// having already run.
+// length 8–24 characters, must contain at least one letter AND one digit.
+// Length is counted by Unicode code points to match the rune-based length
+// enforced by the `validate:"min=8,max=24"` struct tag on User.Password
+// (go-playground/validator measures string min/max via utf8.RuneCountInString).
 func IsPasswordComplexEnough(p string) bool {
-	if len(p) < 8 || len(p) > 24 {
+	n := utf8.RuneCountInString(p)
+	if n < 8 || n > 24 {
 		return false
 	}
 	var hasLetter, hasDigit bool
