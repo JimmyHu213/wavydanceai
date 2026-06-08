@@ -232,8 +232,10 @@ function RedemptionsAdminSection() {
           type="button"
           onClick={async () => {
             const ok = await confirmDialog({
-              title: 'Delete redemption',
-              message: `Delete redemption "${r.name || r.key.slice(0, 8)}"?`,
+              title: t('billing.redemption.deleteTitle'),
+              message: t('billing.redemption.deleteConfirm', {
+                name: r.name || r.key.slice(0, 8),
+              }),
               tone: 'danger',
             })
             if (ok) remove.mutate(r.id)

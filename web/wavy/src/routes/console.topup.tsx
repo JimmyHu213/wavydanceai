@@ -372,7 +372,7 @@ function AdminTopupsSection() {
               const note = await promptDialog({
                 title: t('topup.admin.complete'),
                 message: t('topup.admin.completePrompt'),
-                placeholder: t('topup.admin.completePrompt'),
+                placeholder: t('topup.admin.completePlaceholder'),
                 confirmText: t('topup.admin.complete'),
               })
               if (note !== null && r.trade_no) complete.mutate({ trade_no: r.trade_no, note })
