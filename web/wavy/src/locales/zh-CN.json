@@ -729,7 +729,13 @@
       "overview": "起步",
       "chat": "对话模型",
       "image": "图像模型",
-      "video": "视频模型"
+      "video": "视频模型",
+      "items": {
+        "quickstart": "快速开始",
+        "authentication": "身份认证",
+        "errors": "错误码",
+        "rateLimits": "限流策略"
+      }
     },
     "toc": { "title": "本页目录" },
     "index": {
