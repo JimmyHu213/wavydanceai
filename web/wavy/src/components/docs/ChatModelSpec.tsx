@@ -7,7 +7,7 @@ import { categoryLabel } from '@/lib/docs-catalog'
 import { CodeBlock } from './CodeBlock'
 import { cn } from '@/lib/cn'
 
-type CodeLang = 'curl' | 'python' | 'node'
+type CodeLang = 'curl' | 'python' | 'node' | 'java'
 
 export function ChatModelSpec({ model }: { model: DocItem }) {
   const { t } = useTranslation()
@@ -139,7 +139,7 @@ export function ChatModelSpec({ model }: { model: DocItem }) {
           <section id="examples" className="scroll-mt-24">
             <SectionHeading n="03" title={t('docs.spec.examples.title')} sub={t('docs.spec.examples.sub')} />
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {(['curl', 'python', 'node'] as CodeLang[]).map((id) => (
+              {(['curl', 'python', 'node', 'java'] as CodeLang[]).map((id) => (
                 <button
                   key={id}
                   type="button"
@@ -339,6 +339,32 @@ const stream = await client.chat.completions.create({
 for await (const chunk of stream) {
   process.stdout.write(chunk.choices[0].delta?.content ?? "");
 }`,
+  java: (m) => `import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
+
+var body = """
+    {
+      "model": "${m}",
+      "stream": true,
+      "messages": [{"role": "user", "content": "Hello, wave!"}],
+      "reasoning_effort": "medium"
+    }
+    """;
+
+var client = HttpClient.newHttpClient();
+var req = HttpRequest.newBuilder()
+    .uri(URI.create("https://api.wavydance.ai/v1/chat/completions"))
+    .header("Authorization", "Bearer " + System.getenv("WAVY_API_KEY"))
+    .header("Content-Type", "application/json")
+    .POST(BodyPublishers.ofString(body))
+    .build();
+
+client.send(req, BodyHandlers.ofLines())
+    .body()
+    .forEach(System.out::println);`,
 }
 
 const RESPONSE_SAMPLE = (m: string) => `{

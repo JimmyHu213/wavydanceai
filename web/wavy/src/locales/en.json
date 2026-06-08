@@ -726,7 +726,13 @@
       "overview": "Get started",
       "chat": "Chat models",
       "image": "Image models",
-      "video": "Video models"
+      "video": "Video models",
+      "items": {
+        "quickstart": "Quickstart",
+        "authentication": "Authentication",
+        "errors": "Errors",
+        "rateLimits": "Rate limits"
+      }
     },
     "toc": { "title": "On this page" },
     "index": {
