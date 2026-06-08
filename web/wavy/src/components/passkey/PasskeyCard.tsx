@@ -3,15 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Plus, Trash2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { passkeyService } from '@/lib/services/passkey'
-import { useConfirm, usePrompt } from '@/components/ui/AppDialogs'
 import { isWebAuthnSupported } from './passkey-ceremonies'
 
 export function PasskeyCard() {
   const qc = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const supported = isWebAuthnSupported()
-  const promptDialog = usePrompt()
-  const confirmDialog = useConfirm()
 
   const { data, isLoading } = useQuery({
     queryKey: ['passkeys'],
@@ -19,7 +16,12 @@ export function PasskeyCard() {
   })
 
   const add = useMutation({
-    mutationFn: async (name: string) => passkeyService.register(name),
+    mutationFn: async () => {
+      const name =
+        window.prompt('Name this passkey (e.g. "MacBook Pro")', defaultDeviceLabel()) ?? ''
+      if (!name.trim()) throw new Error('cancelled')
+      return passkeyService.register(name.trim())
+    },
     onSuccess: () => {
       setError(null)
       qc.invalidateQueries({ queryKey: ['passkeys'] })
@@ -48,16 +50,7 @@ export function PasskeyCard() {
         </div>
         <Button
           size="sm"
-          onClick={async () => {
-            const name = await promptDialog({
-              title: 'Add passkey',
-              message: 'Name this passkey so you can recognize it later.',
-              placeholder: 'e.g. "MacBook Pro"',
-              defaultValue: defaultDeviceLabel(),
-              confirmText: 'Add',
-            })
-            if (name && name.trim()) add.mutate(name.trim())
-          }}
+          onClick={() => add.mutate()}
           disabled={!supported || add.isPending}
           title={!supported ? 'This browser does not support WebAuthn' : undefined}
         >
@@ -91,14 +84,9 @@ export function PasskeyCard() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={async () => {
-                    const name = await promptDialog({
-                      title: 'Rename passkey',
-                      defaultValue: k.name,
-                      placeholder: 'New name',
-                      confirmText: 'Save',
-                    })
-                    if (name && name.trim()) rename.mutate({ id: k.id, name: name.trim() })
+                  onClick={() => {
+                    const name = window.prompt('New name', k.name) ?? ''
+                    if (name.trim()) rename.mutate({ id: k.id, name: name.trim() })
                   }}
                   title="Rename"
                 >
@@ -107,13 +95,8 @@ export function PasskeyCard() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={async () => {
-                    const ok = await confirmDialog({
-                      title: 'Delete passkey',
-                      message: `Are you sure you want to delete "${k.name}"? This cannot be undone.`,
-                      tone: 'danger',
-                    })
-                    if (ok) remove.mutate(k.id)
+                  onClick={() => {
+                    if (window.confirm(`Delete passkey "${k.name}"?`)) remove.mutate(k.id)
                   }}
                   title="Delete"
                 >
