@@ -38,8 +38,8 @@ export function ChatModelSpec({ model }: { model: DocItem }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 items-start gap-6 px-6 py-10 lg:px-10">
-      <article className="min-w-0 flex-1 max-w-[820px]">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1500px] flex-1 items-start gap-6 px-6 py-10 lg:px-10 2xl:max-w-[1600px]">
+      <article className="min-w-0 flex-1 max-w-[820px] 2xl:max-w-[920px]">
         <Breadcrumb model={model} />
 
         <header id="overview" className="mt-4 scroll-mt-24">
@@ -178,7 +178,7 @@ export function ChatModelSpec({ model }: { model: DocItem }) {
           </span>
         </button>
       ) : (
-        <aside className="sticky top-[88px] hidden h-[calc(100vh-96px)] w-[460px] flex-none overflow-y-auto lg:block xl:w-[520px]">
+        <aside className="sticky top-[88px] hidden h-[calc(100vh-96px)] w-[460px] flex-none overflow-y-auto lg:block xl:w-[520px] 2xl:w-[600px]">
           <div className="mb-3 flex items-center justify-between">
             <div className="inline-flex items-center gap-1.5 font-mono text-[0.72rem] uppercase tracking-[2px] text-[color:var(--muted)]">
               <Code2 className="h-3.5 w-3.5" />
