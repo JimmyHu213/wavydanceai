@@ -369,6 +369,13 @@ func (a *Adaptor) ParseTaskResult(body []byte) (*task.TaskInfo, error) {
 	case "running":
 		info.Status = model.TaskStatusInProgress
 	case "succeeded":
+		// succeeded without a video_url must not finalize: it would settle the
+		// charge while delivering no artifact. Error out so the poller retries
+		// next round; if the URL never appears, the timeout scan eventually
+		// fails and refunds the task.
+		if strings.TrimSpace(t.Content.VideoUrl) == "" {
+			return nil, errors.New("上游任务 succeeded 但未返回 video_url")
+		}
 		info.Status = model.TaskStatusSuccess
 		info.Url = t.Content.VideoUrl
 		info.TotalTokens = t.Usage.TotalTokens

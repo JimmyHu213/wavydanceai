@@ -243,6 +243,15 @@ func TestParseTaskResult_AllStatuses(t *testing.T) {
 		require.NotEmpty(t, info.Reason)
 	})
 
+	t.Run("succeeded without video_url leaves a retry", func(t *testing.T) {
+		// finalizing here would settle the charge with no artifact; the error
+		// keeps the task for the next round (timeout scan refunds eventually)
+		_, err := a.ParseTaskResult([]byte(`{"id":"cgt-1","status":"succeeded","usage":{"total_tokens":108900}}`))
+		require.Error(t, err)
+		_, err = a.ParseTaskResult([]byte(`{"id":"cgt-1","status":"succeeded","content":{"video_url":"  "}}`))
+		require.Error(t, err)
+	})
+
 	t.Run("unknown status leaves a retry", func(t *testing.T) {
 		_, err := a.ParseTaskResult([]byte(`{"id":"cgt-1","status":"warming_up"}`))
 		require.Error(t, err)
