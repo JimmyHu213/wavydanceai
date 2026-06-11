@@ -16,6 +16,12 @@ import (
 	relaytask "github.com/songquanpeng/one-api/relay/task"
 )
 
+// indirection for tests; production resolves via the relay/task registry
+var (
+	getTaskPlatform = relaytask.GetPlatform
+	getTaskAdaptor  = relaytask.GetAdaptor
+)
+
 func videoError(c *gin.Context, statusCode int, code string, message string) {
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
@@ -39,8 +45,8 @@ func RelayVideoSubmit(c *gin.Context) {
 		return
 	}
 
-	platform := relaytask.GetPlatform(taskMeta.OriginModelName)
-	adaptor := relaytask.GetAdaptor(platform)
+	platform := getTaskPlatform(taskMeta.OriginModelName)
+	adaptor := getTaskAdaptor(platform)
 	if platform == "" || adaptor == nil {
 		videoError(c, http.StatusBadRequest, "model_not_supported",
 			fmt.Sprintf("模型 %s 不支持视频任务", taskMeta.OriginModelName))
@@ -80,10 +86,15 @@ func RelayVideoSubmit(c *gin.Context) {
 		videoError(c, http.StatusForbidden, "insufficient_user_quota", err.Error())
 		return
 	}
+	// charged tracks the amount actually debited so far; every later billing
+	// adjustment updates it, and failure refunds always return exactly this —
+	// refunding the stale pre-consumed amount would leave a residual charge
+	// (or over-refund) once AdjustBillingOnSubmit has corrected the price.
+	charged := quota
 	refund := func(reason string) {
-		logger.Error(ctx, fmt.Sprintf("video submit failed (%s), returning pre-consumed quota %d", reason, quota))
-		if err := model.PostConsumeTokenQuota(taskMeta.TokenId, -quota); err != nil {
-			logger.Error(ctx, "error returning pre-consumed quota: "+err.Error())
+		logger.Error(ctx, fmt.Sprintf("video submit failed (%s), returning charged quota %d", reason, charged))
+		if err := model.PostConsumeTokenQuota(taskMeta.TokenId, -charged); err != nil {
+			logger.Error(ctx, "error returning charged quota: "+err.Error())
 		}
 		_ = model.CacheUpdateUserQuota(ctx, taskMeta.UserId)
 	}
@@ -100,6 +111,11 @@ func RelayVideoSubmit(c *gin.Context) {
 		videoError(c, http.StatusInternalServerError, "do_request_failed", err.Error())
 		return
 	}
+	// the handler owns the upstream body: DoResponse only reads it, so close
+	// here on every path to avoid leaking the connection
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	upstreamTaskId, respErr := adaptor.DoResponse(c, resp, taskMeta)
 	if respErr != nil {
 		refund("upstream rejected: " + respErr.Error.Message)
@@ -108,14 +124,11 @@ func RelayVideoSubmit(c *gin.Context) {
 	}
 
 	// correct the charge with the upstream's actually accepted parameters
-	finalQuota := quota
-	if adjusted, ok := adaptor.AdjustBillingOnSubmit(taskMeta, quota); ok {
-		finalQuota = adjusted
-	}
-	if delta := finalQuota - quota; delta != 0 {
-		if err = model.PostConsumeTokenQuota(taskMeta.TokenId, delta); err != nil {
+	if adjusted, ok := adaptor.AdjustBillingOnSubmit(taskMeta, quota); ok && adjusted != quota {
+		if err = model.PostConsumeTokenQuota(taskMeta.TokenId, adjusted-quota); err != nil {
 			logger.Error(ctx, "error adjusting quota on submit: "+err.Error())
-			finalQuota = quota
+		} else {
+			charged = adjusted
 		}
 	}
 	_ = model.CacheUpdateUserQuota(ctx, taskMeta.UserId)
@@ -126,7 +139,7 @@ func RelayVideoSubmit(c *gin.Context) {
 		UserId:     taskMeta.UserId,
 		Group:      taskMeta.Group,
 		ChannelId:  taskMeta.ChannelId,
-		Quota:      finalQuota,
+		Quota:      charged,
 		Action:     action,
 		Status:     model.TaskStatusQueued,
 		SubmitTime: helper.GetTimestamp(),
@@ -147,7 +160,7 @@ func RelayVideoSubmit(c *gin.Context) {
 		return
 	}
 
-	if finalQuota != 0 {
+	if charged != 0 {
 		logContent := fmt.Sprintf("视频任务 %s，倍率：%.2f × %.2f",
 			task.TaskId, billingContext.ModelRatio, billingContext.GroupRatio)
 		model.RecordConsumeLog(ctx, &model.Log{
@@ -155,11 +168,11 @@ func RelayVideoSubmit(c *gin.Context) {
 			ChannelId: taskMeta.ChannelId,
 			ModelName: taskMeta.OriginModelName,
 			TokenName: taskMeta.TokenName,
-			Quota:     int(finalQuota),
+			Quota:     int(charged),
 			Content:   logContent,
 		})
-		model.UpdateUserUsedQuotaAndRequestCount(taskMeta.UserId, finalQuota)
-		model.UpdateChannelUsedQuota(taskMeta.ChannelId, finalQuota)
+		model.UpdateUserUsedQuotaAndRequestCount(taskMeta.UserId, charged)
+		model.UpdateChannelUsedQuota(taskMeta.ChannelId, charged)
 	}
 
 	c.JSON(http.StatusOK, relaytask.BuildVideoResponse(task))
