@@ -123,7 +123,13 @@ func pollUnfinished(ctx context.Context) {
 			continue
 		}
 		baseURL := channel.GetBaseURL()
-		if baseURL == "" && channel.Type < len(channeltype.ChannelBaseURLs) {
+		if baseURL == "" {
+			if channel.Type < 0 || channel.Type >= len(channeltype.ChannelBaseURLs) {
+				// corrupt channel config: don't index out of bounds; skip the
+				// group and let these tasks hit the timeout scan
+				logger.Error(ctx, fmt.Sprintf("channel #%d has invalid type %d, skipping %d tasks", key.channelId, channel.Type, len(group)))
+				continue
+			}
 			baseURL = channeltype.ChannelBaseURLs[channel.Type]
 		}
 		for i, t := range group {

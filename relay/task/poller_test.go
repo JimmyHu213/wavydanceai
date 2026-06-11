@@ -220,3 +220,30 @@ func TestPollOnce_FetchDeadlineLeavesTaskForNextRound(t *testing.T) {
 	require.Equal(t, model.TaskStatusQueued, reloadTask(t, task.Id).Status)
 	require.Equal(t, int64(700), userQuota(t, user.Id), "a timed-out fetch must not move money")
 }
+
+// A corrupt channel row (negative type, no base URL) must not index
+// ChannelBaseURLs out of bounds — the group is skipped and its tasks are
+// left for the timeout scan.
+func TestPollOnce_InvalidChannelTypeSkipsGroup(t *testing.T) {
+	setupTaskDB(t)
+	user, token := newUserAndToken(t, 1000)
+	channel := &model.Channel{
+		Name:   "corrupt-channel",
+		Key:    "sk-fake",
+		Status: model.ChannelStatusEnabled,
+		Type:   -1,
+	}
+	require.NoError(t, model.DB.Create(channel).Error)
+	task := newSubmittedTask(t, user, token, channel.Id, 300)
+	withFakeAdaptor(t, &fakeAdaptor{
+		fetch: func(context.Context) (*http.Response, error) {
+			t.Fatal("fetch must not run against a corrupt channel config")
+			return nil, nil
+		},
+	})
+
+	require.NotPanics(t, func() { pollOnce(context.Background()) })
+
+	require.Equal(t, model.TaskStatusQueued, reloadTask(t, task.Id).Status)
+	require.Equal(t, int64(700), userQuota(t, user.Id))
+}
