@@ -306,10 +306,76 @@ func TestEstimateBilling_Dimensions(t *testing.T) {
 	}
 }
 
+// 1080p (non-fast) bills at the $7.70/M tier: a 1.1× surcharge over the
+// $7.00/M ModelRatio, threaded through OtherRatios into both the pre-charge
+// and the settlement override.
+func TestEstimateBilling_1080pSurcharge(t *testing.T) {
+	body := `{"model":"seedance-2.0","prompt":"x","seconds":"10","resolution":"1080p","ratio":"16:9"}`
+	a, m, err := newValidatedAdaptor(t, body, "seedance-2.0")
+	require.NoError(t, err)
+	ratios, err := a.EstimateBilling(m)
+	require.NoError(t, err)
+	require.Equal(t, hdSurcharge, ratios[hdSurchargeKey])
+
+	// pre-charge: 486000 tokens × 3.5 × 1.1 = 1871100 quota
+	quota := task.ComputeQuota(&model.TaskBillingContext{
+		ModelRatio:  3.5,
+		GroupRatio:  1,
+		OtherRatios: ratios,
+	})
+	require.EqualValues(t, 1_871_100, quota)
+
+	// non-1080p must not carry the surcharge
+	a720, m720, err := newValidatedAdaptor(t,
+		`{"model":"seedance-2.0","prompt":"x","seconds":"5","resolution":"720p"}`, "seedance-2.0")
+	require.NoError(t, err)
+	ratios720, err := a720.EstimateBilling(m720)
+	require.NoError(t, err)
+	require.NotContains(t, ratios720, hdSurchargeKey)
+}
+
+func TestAdjustBillingOnComplete(t *testing.T) {
+	a := &Adaptor{}
+	newTask := func(otherRatios map[string]float64) *model.Task {
+		tk := &model.Task{}
+		require.NoError(t, tk.SetPrivateData(&model.TaskPrivateData{
+			Billing: model.TaskBillingContext{
+				ModelRatio:  3.5,
+				GroupRatio:  1,
+				OtherRatios: otherRatios,
+			},
+		}))
+		return tk
+	}
+
+	t.Run("1080p settles at the 3.85-equivalent tier", func(t *testing.T) {
+		quota, ok := a.AdjustBillingOnComplete(
+			newTask(map[string]float64{"tokens": 486, hdSurchargeKey: hdSurcharge}),
+			&task.TaskInfo{TotalTokens: 490_000})
+		require.True(t, ok)
+		// 490000 × 3.5 × 1 × 1.1 = 490000 × 3.85
+		require.EqualValues(t, 1_886_500, quota)
+	})
+
+	t.Run("non-1080p falls through to the default recalculation", func(t *testing.T) {
+		_, ok := a.AdjustBillingOnComplete(
+			newTask(map[string]float64{"tokens": 108}),
+			&task.TaskInfo{TotalTokens: 108_900})
+		require.False(t, ok)
+	})
+
+	t.Run("no reported usage keeps the pre-consumed amount", func(t *testing.T) {
+		_, ok := a.AdjustBillingOnComplete(
+			newTask(map[string]float64{"tokens": 486, hdSurchargeKey: hdSurcharge}),
+			&task.TaskInfo{})
+		require.False(t, ok)
+	})
+}
+
 func TestFetchTask_RequestShape(t *testing.T) {
-	var gotPath, gotAuth string
+	var gotURI, gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
+		gotURI = r.RequestURI
 		gotAuth = r.Header.Get("Authorization")
 		_, _ = w.Write([]byte(`{"id":"cgt-1","status":"queued"}`))
 	}))
@@ -320,8 +386,14 @@ func TestFetchTask_RequestShape(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, "/api/v3/contents/generations/tasks/cgt-1", gotPath)
+	require.Equal(t, "/api/v3/contents/generations/tasks/cgt-1", gotURI)
 	require.Equal(t, "Bearer sk-test", gotAuth)
+
+	// odd upstream ids must be path-escaped, not spliced raw into the URL
+	resp, err = a.FetchTask(context.Background(), server.URL, "sk-test", "cgt 1?x")
+	require.NoError(t, err)
+	resp.Body.Close()
+	require.Equal(t, "/api/v3/contents/generations/tasks/cgt%201%3Fx", gotURI)
 }
 
 // FetchTask must thread ctx into the HTTP request, or the poller's 30s

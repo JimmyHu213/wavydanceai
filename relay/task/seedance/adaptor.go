@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -60,6 +61,17 @@ const (
 	defaultResolution = "720p"
 	minDuration       = 4
 	maxDuration       = 15
+)
+
+// Seedance 2.0 (non-fast) 1080p is priced at $7.70/M tokens vs $7.00/M for
+// 480p/720p, i.e. a 7.70/7.00 = 1.1× surcharge over the ModelRatio base
+// tier. It rides in OtherRatios: ComputeQuota multiplies it into the
+// pre-charge, and the billing snapshot in the task's private data carries it
+// to AdjustBillingOnComplete for settlement. (Fast models reject 1080p at
+// validation, so the surcharge can only apply to non-fast 2.0.)
+const (
+	hdSurchargeKey = "hd_surcharge"
+	hdSurcharge    = 1.1
 )
 
 // resolutionShortSide: the billing estimate treats the resolution as the
@@ -160,7 +172,33 @@ func (a *Adaptor) EstimateBilling(meta *meta.Meta) (map[string]float64, error) {
 	}
 	w, h := a.estimateDimensions()
 	tokens := float64(a.duration) * float64(w) * float64(h) * 24 / 1024
-	return map[string]float64{"tokens": tokens / 1000}, nil
+	ratios := map[string]float64{"tokens": tokens / 1000}
+	if a.resolution == "1080p" {
+		ratios[hdSurchargeKey] = hdSurcharge
+	}
+	return ratios, nil
+}
+
+// AdjustBillingOnComplete applies the 1080p price tier on settlement. The
+// framework's default recalculation is totalTokens × ModelRatio × GroupRatio
+// (see task.SettleSuccess); for 1080p tasks the surcharge snapshotted in the
+// billing context at submit time must be multiplied in as well — otherwise
+// settlement would silently fall back to the cheaper 480p/720p tier and
+// undercharge by ~9%. Non-1080p tasks fall through to the default.
+func (a *Adaptor) AdjustBillingOnComplete(t *model.Task, info *task.TaskInfo) (int64, bool) {
+	if info.TotalTokens <= 0 {
+		return 0, false
+	}
+	pd, err := t.GetPrivateData()
+	if err != nil {
+		return 0, false
+	}
+	surcharge, ok := pd.Billing.OtherRatios[hdSurchargeKey]
+	if !ok || surcharge <= 0 {
+		return 0, false
+	}
+	bc := pd.Billing
+	return int64(float64(info.TotalTokens) * bc.ModelRatio * bc.GroupRatio * surcharge), true
 }
 
 func (a *Adaptor) estimateDimensions() (width, height int) {
@@ -227,11 +265,11 @@ func (a *Adaptor) BuildRequestBody(c *gin.Context, meta *meta.Meta) (io.Reader, 
 }
 
 func (a *Adaptor) DoRequest(c *gin.Context, meta *meta.Meta, requestBody io.Reader) (*http.Response, error) {
-	url, err := a.BuildRequestURL(meta)
+	requestURL, err := a.BuildRequestURL(meta)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, url, requestBody)
+	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodPost, requestURL, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -294,8 +332,8 @@ func seedanceError(status int, code string, message string) *relaymodel.ErrorWit
 // Responses are returned as-is: the poller itself treats 429 (and any other
 // non-200) as "keep the task, retry next round".
 func (a *Adaptor) FetchTask(ctx context.Context, baseURL string, key string, upstreamTaskId string) (*http.Response, error) {
-	url := strings.TrimSuffix(baseURL, "/") + tasksPath + "/" + upstreamTaskId
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	fetchURL := strings.TrimSuffix(baseURL, "/") + tasksPath + "/" + url.PathEscape(upstreamTaskId)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fetchURL, nil)
 	if err != nil {
 		return nil, err
 	}

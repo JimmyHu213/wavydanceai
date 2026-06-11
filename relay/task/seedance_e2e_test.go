@@ -7,6 +7,7 @@
 package task_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -173,6 +174,87 @@ func TestSeedanceEndToEnd(t *testing.T) {
 	require.NoError(t, model.LOG_DB.Model(&model.Log{}).
 		Where("type = ?", model.LogTypeRefund).Count(&refundLogs).Error)
 	require.Zero(t, refundLogs)
+}
+
+// 1080p settlement through the real task.SettleSuccess path: the adaptor's
+// AdjustBillingOnComplete must charge the $7.70/M tier (3.5 × 1.1 = 3.85
+// effective) using the snapshotted surcharge — with the exact dimensions of
+// the framework formula, no double quotaScale.
+func TestSeedance1080pSettlementChargesHdTier(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	common.RedisEnabled = false
+
+	dsn := filepath.Join(t.TempDir(), "seedance-hd.db") + "?_busy_timeout=5000"
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(
+		&model.User{}, &model.Token{}, &model.Log{}, &model.Task{},
+	))
+	model.DB = db
+	model.LOG_DB = db
+
+	const initialQuota = int64(3_000_000)
+	suffix := random.GetUUID()[:8]
+	user := &model.User{
+		Username:    "hd-" + suffix,
+		Password:    "x",
+		Role:        model.RoleCommonUser,
+		Status:      model.UserStatusEnabled,
+		AccessToken: "at-" + suffix,
+		AffCode:     "af-" + suffix,
+		Quota:       initialQuota,
+	}
+	require.NoError(t, model.DB.Create(user).Error)
+	token := &model.Token{
+		UserId:         user.Id,
+		Key:            "key-" + suffix,
+		Status:         model.TokenStatusEnabled,
+		Name:           "seedance-hd",
+		UnlimitedQuota: true,
+	}
+	require.NoError(t, model.DB.Create(token).Error)
+
+	// what EstimateBilling produces for 10s 1080p 16:9: 486000 tokens + the
+	// 1.1× surcharge → pre-charge 486000 × 3.5 × 1.1 = 1871100
+	billing := model.TaskBillingContext{
+		TokenId:     token.Id,
+		TokenName:   token.Name,
+		ModelName:   "seedance-2.0",
+		ModelRatio:  3.5,
+		GroupRatio:  1,
+		OtherRatios: map[string]float64{"tokens": 486, "hd_surcharge": 1.1},
+	}
+	preQuota := relaytask.ComputeQuota(&billing)
+	require.EqualValues(t, 1_871_100, preQuota)
+	require.NoError(t, model.PreConsumeTokenQuota(token.Id, preQuota))
+	hdTask := &model.Task{
+		TaskId:     model.GenerateTaskId(),
+		Platform:   seedance.Platform,
+		UserId:     user.Id,
+		Group:      "default",
+		ChannelId:  1,
+		Quota:      preQuota,
+		Action:     "generate",
+		Status:     model.TaskStatusSuccess, // CAS already won by the caller
+		SubmitTime: 1,
+	}
+	require.NoError(t, hdTask.SetPrivateData(&model.TaskPrivateData{
+		UpstreamTaskId: "cgt-hd",
+		Billing:        billing,
+	}))
+	require.NoError(t, model.InsertTask(hdTask))
+
+	adaptor := relaytask.GetAdaptor(seedance.Platform)
+	require.NotNil(t, adaptor)
+	relaytask.SettleSuccess(context.Background(), adaptor, hdTask,
+		&relaytask.TaskInfo{TotalTokens: 490_000})
+
+	// 490000 × 3.5 × 1 × 1.1 = 1886500: the 15400 delta is charged on top
+	const settled = int64(1_886_500)
+	reloaded, err := model.GetTaskByTaskId(hdTask.TaskId)
+	require.NoError(t, err)
+	require.Equal(t, settled, reloaded.Quota)
+	require.Equal(t, initialQuota-settled, currentQuota(t, user.Id))
 }
 
 func currentQuota(t *testing.T, userId int) int64 {
