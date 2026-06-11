@@ -31,12 +31,23 @@ import (
 	"github.com/songquanpeng/one-api/relay/task/seedance"
 )
 
-func TestSeedanceEndToEnd(t *testing.T) {
+// setupE2E swaps the process-wide globals (Gin mode, Redis flag, DBs) for a
+// file-backed sqlite and restores them in t.Cleanup so later tests in the
+// same process don't inherit the overrides.
+func setupE2E(t *testing.T, dbName string) {
+	t.Helper()
+	prevGinMode := gin.Mode()
+	prevRedisEnabled := common.RedisEnabled
+	prevDB, prevLogDB := model.DB, model.LOG_DB
+	t.Cleanup(func() {
+		gin.SetMode(prevGinMode)
+		common.RedisEnabled = prevRedisEnabled
+		model.DB, model.LOG_DB = prevDB, prevLogDB
+	})
 	gin.SetMode(gin.TestMode)
 	common.RedisEnabled = false
-	client.Init()
 
-	dsn := filepath.Join(t.TempDir(), "seedance-e2e.db") + "?_busy_timeout=5000"
+	dsn := filepath.Join(t.TempDir(), dbName) + "?_busy_timeout=5000"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
@@ -44,6 +55,11 @@ func TestSeedanceEndToEnd(t *testing.T) {
 	))
 	model.DB = db
 	model.LOG_DB = db
+}
+
+func TestSeedanceEndToEnd(t *testing.T) {
+	setupE2E(t, "seedance-e2e.db")
+	client.Init()
 
 	// --- mock Ark upstream -------------------------------------------------
 	const upstreamId = "cgt-20260611-e2e"
@@ -53,7 +69,11 @@ func TestSeedanceEndToEnd(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v3/contents/generations/tasks":
 			gotSubmitAuth = r.Header.Get("Authorization")
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&submitBody))
+			// handler goroutine: record failures with Errorf (goroutine-safe),
+			// never require/FailNow, which must run on the test goroutine
+			if err := json.NewDecoder(r.Body).Decode(&submitBody); err != nil {
+				t.Errorf("failed to decode submit body: %v", err)
+			}
 			_, _ = w.Write([]byte(`{"id":"` + upstreamId + `"}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v3/contents/generations/tasks/"+upstreamId:
 			gotFetchAuth = r.Header.Get("Authorization")
@@ -181,17 +201,7 @@ func TestSeedanceEndToEnd(t *testing.T) {
 // effective) using the snapshotted surcharge — with the exact dimensions of
 // the framework formula, no double quotaScale.
 func TestSeedance1080pSettlementChargesHdTier(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	common.RedisEnabled = false
-
-	dsn := filepath.Join(t.TempDir(), "seedance-hd.db") + "?_busy_timeout=5000"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(
-		&model.User{}, &model.Token{}, &model.Log{}, &model.Task{},
-	))
-	model.DB = db
-	model.LOG_DB = db
+	setupE2E(t, "seedance-hd.db")
 
 	const initialQuota = int64(3_000_000)
 	suffix := random.GetUUID()[:8]
