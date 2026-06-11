@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -134,7 +135,7 @@ func httpResp(status int, body string) *http.Response {
 // fakeAdaptor lets tests script FetchTask / ParseTaskResult / billing hooks.
 type fakeAdaptor struct {
 	BaseBilling
-	fetch         func() (*http.Response, error)
+	fetch         func(ctx context.Context) (*http.Response, error)
 	parse         func(body []byte) (*TaskInfo, error)
 	completeQuota *int64 // non-nil: AdjustBillingOnComplete override
 }
@@ -163,8 +164,8 @@ func (f *fakeAdaptor) DoResponse(*gin.Context, *http.Response, *meta.Meta) (stri
 	return "", nil
 }
 
-func (f *fakeAdaptor) FetchTask(baseURL string, key string, upstreamTaskId string) (*http.Response, error) {
-	return f.fetch()
+func (f *fakeAdaptor) FetchTask(ctx context.Context, baseURL string, key string, upstreamTaskId string) (*http.Response, error) {
+	return f.fetch(ctx)
 }
 
 func (f *fakeAdaptor) ParseTaskResult(body []byte) (*TaskInfo, error) {

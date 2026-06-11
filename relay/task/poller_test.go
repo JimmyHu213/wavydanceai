@@ -17,7 +17,7 @@ func TestPollOnce_SuccessSettlesTask(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300) // wallet: 700
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return httpResp(200, `{"status":"succeeded"}`), nil },
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(200, `{"status":"succeeded"}`), nil },
 		parse: func([]byte) (*TaskInfo, error) {
 			return &TaskInfo{
 				Status:   model.TaskStatusSuccess,
@@ -45,7 +45,7 @@ func TestPollOnce_UpstreamFailureRefunds(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300) // wallet: 700
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return httpResp(200, `{"status":"failed"}`), nil },
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(200, `{"status":"failed"}`), nil },
 		parse: func([]byte) (*TaskInfo, error) {
 			return &TaskInfo{Status: model.TaskStatusFailure, Reason: "content moderation"}, nil
 		},
@@ -66,7 +66,7 @@ func TestPollOnce_RateLimitedKeepsTaskUntouched(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300)
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return httpResp(http.StatusTooManyRequests, ""), nil },
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(http.StatusTooManyRequests, ""), nil },
 		parse: func([]byte) (*TaskInfo, error) {
 			t.Fatal("parse must not be called on 429")
 			return nil, nil
@@ -86,7 +86,7 @@ func TestPollOnce_ParseFailureLeavesTaskForNextRound(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300)
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return httpResp(200, "not json"), nil },
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(200, "not json"), nil },
 		parse: func([]byte) (*TaskInfo, error) { return nil, errors.New("unexpected payload") },
 	})
 
@@ -103,7 +103,7 @@ func TestPollOnce_FetchErrorLeavesTaskForNextRound(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300)
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return nil, errors.New("connection refused") },
+		fetch: func(context.Context) (*http.Response, error) { return nil, errors.New("connection refused") },
 		parse: func([]byte) (*TaskInfo, error) {
 			t.Fatal("parse must not be called when fetch fails")
 			return nil, nil
@@ -121,7 +121,7 @@ func TestPollOnce_ProgressUpdateForRunningTask(t *testing.T) {
 	channel := newTestChannel(t)
 	task := newSubmittedTask(t, user, token, channel.Id, 300)
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) { return httpResp(200, `{"status":"running"}`), nil },
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(200, `{"status":"running"}`), nil },
 		parse: func([]byte) (*TaskInfo, error) {
 			return &TaskInfo{Status: model.TaskStatusInProgress, Progress: 40}, nil
 		},
@@ -145,7 +145,7 @@ func TestPollOnce_TimeoutFailsAndRefunds(t *testing.T) {
 	require.NoError(t, model.DB.Model(&model.Task{}).Where("id = ?", task.Id).
 		Update("submit_time", task.SubmitTime-int64(taskTimeout.Seconds())-1).Error)
 	withFakeAdaptor(t, &fakeAdaptor{
-		fetch: func() (*http.Response, error) {
+		fetch: func(context.Context) (*http.Response, error) {
 			t.Fatal("the timeout scan must fail the task before any upstream fetch")
 			return nil, nil
 		},
@@ -172,4 +172,51 @@ func TestPollOnce_NoAdaptorSkipsTasks(t *testing.T) {
 	pollOnce(context.Background())
 
 	require.Equal(t, model.TaskStatusQueued, reloadTask(t, task.Id).Status)
+}
+
+// A panicking adaptor (future ParseTaskResult bugs, nil derefs in billing
+// hooks) must not take down the whole process — the poller has no
+// RelayPanicRecover in front of it, so pollOnceSafe is that shield.
+func TestPollOnceSafe_RecoversFromAdaptorPanic(t *testing.T) {
+	setupTaskDB(t)
+	user, token := newUserAndToken(t, 1000)
+	channel := newTestChannel(t)
+	task := newSubmittedTask(t, user, token, channel.Id, 300)
+	withFakeAdaptor(t, &fakeAdaptor{
+		fetch: func(context.Context) (*http.Response, error) { return httpResp(200, "{}"), nil },
+		parse: func([]byte) (*TaskInfo, error) { panic("adaptor bug") },
+	})
+
+	require.NotPanics(t, func() { pollOnceSafe(context.Background()) })
+
+	got := reloadTask(t, task.Id)
+	require.Equal(t, model.TaskStatusQueued, got.Status, "a panicking round must leave the task for the next one")
+	require.Equal(t, int64(700), userQuota(t, user.Id))
+}
+
+// The framework must set a per-fetch deadline so a hung upstream connection
+// cannot block the single polling goroutine; hitting that deadline is a
+// transient error that leaves the task for the next round.
+func TestPollOnce_FetchDeadlineLeavesTaskForNextRound(t *testing.T) {
+	setupTaskDB(t)
+	user, token := newUserAndToken(t, 1000)
+	channel := newTestChannel(t)
+	task := newSubmittedTask(t, user, token, channel.Id, 300)
+	withFakeAdaptor(t, &fakeAdaptor{
+		fetch: func(ctx context.Context) (*http.Response, error) {
+			_, hasDeadline := ctx.Deadline()
+			require.True(t, hasDeadline, "the poller must set a per-fetch deadline")
+			// simulate a hung upstream that only returns once the deadline fires
+			return nil, context.DeadlineExceeded
+		},
+		parse: func([]byte) (*TaskInfo, error) {
+			t.Fatal("parse must not be called when fetch times out")
+			return nil, nil
+		},
+	})
+
+	pollOnce(context.Background())
+
+	require.Equal(t, model.TaskStatusQueued, reloadTask(t, task.Id).Status)
+	require.Equal(t, int64(700), userQuota(t, user.Id), "a timed-out fetch must not move money")
 }

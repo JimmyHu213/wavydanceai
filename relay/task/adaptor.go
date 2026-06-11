@@ -6,6 +6,7 @@
 package task
 
 import (
+	"context"
 	"io"
 	"net/http"
 
@@ -44,8 +45,11 @@ type Adaptor interface {
 	// owns the OpenAI-Video-compatible response.
 	DoResponse(c *gin.Context, resp *http.Response, meta *meta.Meta) (upstreamTaskId string, err *relaymodel.ErrorWithStatusCode)
 	// FetchTask queries the upstream for the current state of one task; it
-	// runs in the poller, outside any HTTP request context.
-	FetchTask(baseURL string, key string, upstreamTaskId string) (*http.Response, error)
+	// runs in the poller, outside any HTTP request context. The poller sets
+	// a per-call deadline on ctx — implementations must honor it (pass it
+	// into the http request), or a hung upstream would stall the single
+	// polling goroutine and with it every timeout scan and refund.
+	FetchTask(ctx context.Context, baseURL string, key string, upstreamTaskId string) (*http.Response, error)
 	ParseTaskResult(body []byte) (*TaskInfo, error)
 	GetModelList() []string
 	GetChannelName() string

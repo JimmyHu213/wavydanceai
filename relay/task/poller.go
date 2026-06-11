@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/songquanpeng/one-api/common/helper"
@@ -17,8 +18,11 @@ const (
 	pollInterval = 15 * time.Second
 	// taskTimeout: non-terminal tasks older than this are failed + refunded.
 	// Video generations finish in minutes; 2 hours means the upstream lost it.
-	taskTimeout      = 2 * time.Hour
-	fetchInterval    = time.Second // pause between upstream queries to stay under rate limits
+	taskTimeout   = 2 * time.Hour
+	fetchInterval = time.Second // pause between upstream queries to stay under rate limits
+	// fetchTimeout caps one upstream query; a hung connection must not stall
+	// the single polling goroutine (and with it timeout scans and refunds).
+	fetchTimeout     = 30 * time.Second
 	pollBatchLimit   = 1000
 	timeoutScanLimit = 100
 )
@@ -33,9 +37,23 @@ var adaptorByPlatform = GetAdaptor
 func StartPolling() {
 	logger.SysLog("task polling loop started")
 	for {
-		pollOnce(context.Background())
+		pollOnceSafe(context.Background())
 		time.Sleep(pollInterval)
 	}
+}
+
+// pollOnceSafe shields the polling loop from panics in adaptor code — the
+// HTTP side has RelayPanicRecover, this is the poller's equivalent. A
+// panicking round is logged and skipped; the next round retries, and tasks
+// it kept failing on are eventually swept by the timeout scan.
+func pollOnceSafe(ctx context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf(ctx, "task polling round panicked: %v", r)
+			logger.Errorf(ctx, "stacktrace from panic: %s", string(debug.Stack()))
+		}
+	}()
+	pollOnce(ctx)
 }
 
 func pollOnce(ctx context.Context) {
@@ -126,7 +144,9 @@ func pollTask(ctx context.Context, adaptor Adaptor, t *model.Task, baseURL strin
 		logger.Error(ctx, fmt.Sprintf("task %s: missing upstream task id, leaving for timeout scan", t.TaskId))
 		return
 	}
-	resp, err := adaptor.FetchTask(baseURL, key, pd.UpstreamTaskId)
+	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
+	defer cancel()
+	resp, err := adaptor.FetchTask(fetchCtx, baseURL, key, pd.UpstreamTaskId)
 	if err != nil {
 		logger.Error(ctx, fmt.Sprintf("task %s: fetch failed: %s", t.TaskId, err.Error()))
 		return
