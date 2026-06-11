@@ -146,6 +146,7 @@
         "duration": "时长（秒）",
         "sound": "声音",
         "cameraFixed": "锁定镜头",
+        "watermark": "水印",
         "specHint": "规范：{{spec}}",
         "gptImage2ResolutionHint": "注意：1:1 比例不支持 4K。"
       }

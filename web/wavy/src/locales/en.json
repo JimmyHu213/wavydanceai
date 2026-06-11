@@ -146,6 +146,7 @@
         "duration": "Duration (s)",
         "sound": "Sound",
         "cameraFixed": "Lock camera",
+        "watermark": "Watermark",
         "specHint": "Spec: {{spec}}",
         "gptImage2ResolutionHint": "Note: 1:1 aspect ratio cannot be rendered at 4K."
       }
