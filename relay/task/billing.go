@@ -2,7 +2,10 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"gorm.io/gorm"
 
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
@@ -37,9 +40,17 @@ func RefundTask(ctx context.Context, task *model.Task, reason string) {
 	}
 	err = model.PostConsumeTokenQuota(pd.Billing.TokenId, -task.Quota)
 	if err != nil {
-		// The token may have been deleted since submission; credit the user
-		// wallet directly so the refund is never lost.
-		logger.Error(ctx, fmt.Sprintf("task %s: token refund failed (%s), crediting user directly", task.TaskId, err.Error()))
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			// Ambiguous failure: PostConsumeTokenQuota credits the user
+			// wallet before the token ledger, so the user may already have
+			// the money. Crediting again here would double-refund — log
+			// loudly for manual reconciliation instead.
+			logger.Error(ctx, fmt.Sprintf("task %s: refund of %d may be incomplete, reconcile manually: %s", task.TaskId, task.Quota, err.Error()))
+			return
+		}
+		// The token is confirmed gone (deleted since submission), so nothing
+		// was credited yet — pay the user wallet directly.
+		logger.Error(ctx, fmt.Sprintf("task %s: token %d no longer exists, crediting user directly", task.TaskId, pd.Billing.TokenId))
 		if err = model.IncreaseUserQuota(task.UserId, task.Quota); err != nil {
 			logger.Error(ctx, fmt.Sprintf("task %s: user refund failed: %s", task.TaskId, err.Error()))
 			return

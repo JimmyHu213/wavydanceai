@@ -131,3 +131,35 @@ func TestFailTask_DuplicateTerminalMigrationRefundsOnce(t *testing.T) {
 	require.Equal(t, model.TaskStatusFailure, got.Status)
 	require.Equal(t, "upstream failed", got.FailReason, "the loser must not overwrite the winner's reason")
 }
+
+// The token was deleted after submission: nothing can have been credited via
+// the token path, so the refund must fall back to the user wallet directly.
+func TestRefundTask_TokenDeletedFallsBackToUserWallet(t *testing.T) {
+	setupTaskDB(t)
+	user, token := newUserAndToken(t, 1000)
+	task := newSubmittedTask(t, user, token, 1, 300) // wallet: 700
+	require.NoError(t, model.DB.Delete(&model.Token{}, token.Id).Error)
+
+	RefundTask(context.Background(), task, "upstream failed")
+
+	require.Equal(t, int64(1000), userQuota(t, user.Id), "refund must land in the wallet exactly once")
+	require.EqualValues(t, 1, countLogs(t, model.LogTypeRefund))
+}
+
+// Any error other than record-not-found is ambiguous: PostConsumeTokenQuota
+// credits the user before the token ledger, so the user may already have the
+// money. The fallback must NOT credit again.
+func TestRefundTask_AmbiguousErrorDoesNotDoubleCredit(t *testing.T) {
+	setupTaskDB(t)
+	user, token := newUserAndToken(t, 1000)
+	task := newSubmittedTask(t, user, token, 1, 300) // wallet: 700
+	// force a non-ErrRecordNotFound failure inside PostConsumeTokenQuota
+	require.NoError(t, model.DB.Migrator().DropTable(&model.Token{}))
+
+	RefundTask(context.Background(), task, "upstream failed")
+
+	require.Equal(t, int64(700), userQuota(t, user.Id),
+		"ambiguous refund errors must not trigger the wallet fallback")
+	require.EqualValues(t, 0, countLogs(t, model.LogTypeRefund),
+		"no refund log without a confirmed refund")
+}
