@@ -3,7 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/songquanpeng/one-api/common"
@@ -127,7 +129,7 @@ func SendEmailVerification(c *gin.Context) {
 			<p>Use the code below to verify your email address for %s:</p>
 			<p style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #07394a; background-color: #e7f5f8; border: 1px solid #c9e6ee; padding: 14px; text-align: center; border-radius: 8px;">%s</p>
 			<p style="color: #3f7a8c;">This code expires in %d minutes. If you didn't request it, you can safely ignore this email.</p>
-		`, config.SystemName, code, common.VerificationValidMinutes),
+		`, html.EscapeString(config.SystemName), code, common.VerificationValidMinutes),
 	)
 	err := message.SendEmail(subject, email, content)
 	if err != nil {
@@ -162,7 +164,9 @@ func SendPasswordResetEmail(c *gin.Context) {
 	}
 	code := common.GenerateVerificationCode(0)
 	common.RegisterVerificationCodeWithKey(email, code, common.PasswordResetPurpose)
-	link := fmt.Sprintf("%s/reset-password?email=%s&token=%s", config.ServerAddress, email, code)
+	link := fmt.Sprintf("%s/reset-password?email=%s&token=%s",
+		config.ServerAddress, url.QueryEscape(email), url.QueryEscape(code))
+	safeLink := html.EscapeString(link)
 	subject := fmt.Sprintf("Reset your %s password", config.SystemName)
 	content := message.EmailTemplate(
 		"Reset your password",
@@ -175,7 +179,7 @@ func SendPasswordResetEmail(c *gin.Context) {
 			<p style="color: #3f7a8c;">If the button doesn't work, copy and paste this link into your browser:</p>
 			<p style="background-color: #e7f5f8; border: 1px solid #c9e6ee; padding: 10px; border-radius: 8px; word-break: break-all; font-size: 14px;">%s</p>
 			<p style="color: #3f7a8c;">This link expires in %d minutes. If you didn't request a reset, you can safely ignore this email.</p>
-		`, config.SystemName, link, link, common.VerificationValidMinutes),
+		`, html.EscapeString(config.SystemName), safeLink, safeLink, common.VerificationValidMinutes),
 	)
 	err := message.SendEmail(subject, email, content)
 	if err != nil {

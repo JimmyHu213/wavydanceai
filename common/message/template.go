@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+	"html"
 	"strings"
 
 	"github.com/songquanpeng/one-api/common/config"
@@ -25,9 +26,10 @@ func logoURL() string {
 // Colors mirror web/wavy's light-theme tokens (globals.css): ink #07394a,
 // muted #3f7a8c, cyan #2e8fb0, page #f3fafc, border #c9e6ee.
 func EmailTemplate(title, content string) string {
+	systemName := html.EscapeString(config.SystemName)
 	logo := ""
 	if u := logoURL(); u != "" {
-		logo = fmt.Sprintf(`<img src="%s" alt="%s" width="48" height="48" style="display: block; margin: 0 auto 12px auto; border-radius: 10px;" />`, u, config.SystemName)
+		logo = fmt.Sprintf(`<img src="%s" alt="%s" width="48" height="48" style="display: block; margin: 0 auto 12px auto; border-radius: 10px;" />`, html.EscapeString(u), systemName)
 	}
 	return fmt.Sprintf(`
 <!DOCTYPE html>
@@ -52,5 +54,5 @@ func EmailTemplate(title, content string) string {
     </div>
 </body>
 </html>
-`, logo, title, content, config.SystemName)
+`, logo, html.EscapeString(title), content, systemName)
 }
