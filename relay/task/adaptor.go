@@ -98,11 +98,22 @@ var (
 // into GetAdaptor / GetPlatform. Adaptor packages call it from init(): they
 // import this package for the Adaptor interface, so this package cannot
 // import them back — main.go blank-imports each adaptor package to link it
-// in (the database/sql driver pattern). Not safe for concurrent use; all
-// registrations happen during package init.
+// in (the database/sql driver pattern). Like sql.Register it panics on a nil
+// factory or a duplicate platform/model registration: both are wiring bugs
+// that must surface at startup, not as silently re-routed billing. Not safe
+// for concurrent use; all registrations happen during package init.
 func Register(platform string, factory func() Adaptor, models ...string) {
+	if factory == nil {
+		panic("task: Register factory is nil for platform " + platform)
+	}
+	if _, dup := adaptorFactories[platform]; dup {
+		panic("task: Register called twice for platform " + platform)
+	}
 	adaptorFactories[platform] = factory
 	for _, m := range models {
+		if existing, dup := platformByModel[m]; dup {
+			panic("task: model " + m + " already registered to platform " + existing)
+		}
 		platformByModel[m] = platform
 	}
 }
