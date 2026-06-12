@@ -20,21 +20,31 @@ func shouldAuth() bool {
 	return config.SMTPAccount != "" || config.SMTPToken != ""
 }
 
-func SendEmail(subject string, receiver string, content string) error {
-	if receiver == "" {
-		return fmt.Errorf("receiver is empty")
-	}
-	// Validate and canonicalize recipients once. A receiver carrying CR/LF could
-	// otherwise inject extra SMTP commands or mail headers (e.g. a hidden Bcc) —
-	// net/mail.ParseAddress rejects such addresses. The parsed forms are reused
-	// for the envelope below so the raw string is never re-split.
+// parseRecipients splits a ";"-separated receiver list and validates each
+// entry with net/mail.ParseAddress, returning the canonical addresses. It
+// rejects CR/LF-bearing entries (which could inject extra SMTP commands or mail
+// headers, e.g. a hidden Bcc) as well as empty / blank entries.
+func parseRecipients(receiver string) ([]string, error) {
 	var recipients []string
 	for _, raw := range strings.Split(receiver, ";") {
 		parsed, err := netmail.ParseAddress(strings.TrimSpace(raw))
 		if err != nil {
-			return fmt.Errorf("invalid email recipient %q: %w", raw, err)
+			return nil, fmt.Errorf("invalid email recipient %q: %w", raw, err)
 		}
 		recipients = append(recipients, parsed.Address)
+	}
+	return recipients, nil
+}
+
+func SendEmail(subject string, receiver string, content string) error {
+	if receiver == "" {
+		return fmt.Errorf("receiver is empty")
+	}
+	// Validate and canonicalize recipients once. The parsed forms are reused for
+	// the envelope below so the raw string is never re-split.
+	recipients, err := parseRecipients(receiver)
+	if err != nil {
+		return err
 	}
 	if config.SMTPFrom == "" { // for compatibility
 		config.SMTPFrom = config.SMTPAccount
@@ -49,7 +59,7 @@ func SendEmail(subject string, receiver string, content string) error {
 	}
 	// Generate a unique Message-ID
 	buf := make([]byte, 16)
-	_, err := rand.Read(buf)
+	_, err = rand.Read(buf)
 	if err != nil {
 		return err
 	}
