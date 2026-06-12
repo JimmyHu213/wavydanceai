@@ -9,6 +9,10 @@ OpenAI‑compatible endpoints with an `sk-` token.
 All platform endpoints live under the `/api` prefix (plus two OpenAI‑compatible
 billing endpoints under `/`).
 
+The interactive Swagger UI at `/swagger` is **off by default** — set
+`SWAGGER_ENABLED=true` to serve it. Leave it unset on white‑label production
+deployments so the platform's API surface is not exposed.
+
 ---
 
 ## 1. Conventions

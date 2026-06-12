@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/songquanpeng/one-api/common/env"
 	"github.com/songquanpeng/one-api/docs"
 )
 
@@ -39,7 +40,12 @@ const swaggerIndexHTML = `<!DOCTYPE html>
 // SetSwaggerRouter serves the platform API docs (Swagger UI + spec) at /swagger.
 // Same-origin, so the session cookie flows for "Try it out"; the Authorize
 // dialog accepts a personal access token for programmatic callers.
+// Off unless SWAGGER_ENABLED=true: white-label production deployments must
+// not expose the platform's API surface.
 func SetSwaggerRouter(router *gin.Engine) {
+	if !env.Bool("SWAGGER_ENABLED", false) {
+		return
+	}
 	router.GET("/swagger", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/swagger/")
 	})
