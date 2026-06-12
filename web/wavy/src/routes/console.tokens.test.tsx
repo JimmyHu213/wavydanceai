@@ -36,7 +36,7 @@ const TokensPage = (Route as unknown as { options: { component: React.ComponentT
 const token: Token = {
   id: 7,
   user_id: 1,
-  key: 'abcd1234efgh5678',
+  key: 'test-key', // low-entropy on purpose — gitleaks flags realistic-looking keys
   status: TokenStatus.Enabled,
   name: 'production-app',
   created_time: 1_700_000_000,
