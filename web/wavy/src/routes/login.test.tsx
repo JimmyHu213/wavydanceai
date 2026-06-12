@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ApiError } from '@/lib/api'
 import type { StatusInfo } from '@/lib/services/status'
 import '@/lib/i18n'
 
@@ -18,6 +20,11 @@ vi.mock('@/lib/services/status', () => ({
   statusService: { get: vi.fn() },
 }))
 
+vi.mock('@/lib/services/auth', () => ({
+  authService: { login: vi.fn() },
+  isTwoFAChallenge: vi.fn(() => false),
+}))
+
 vi.mock('@/components/passkey/passkey-ceremonies', () => ({
   isWebAuthnSupported: vi.fn(() => true),
   beginPasskeyRegistration: vi.fn(),
@@ -27,9 +34,11 @@ vi.mock('@/components/passkey/passkey-ceremonies', () => ({
 }))
 
 import { statusService } from '@/lib/services/status'
+import { authService } from '@/lib/services/auth'
 import { Route } from './login'
 
 const mockStatus = statusService.get as ReturnType<typeof vi.fn>
+const mockLogin = authService.login as ReturnType<typeof vi.fn>
 
 /** Minimal status payload — only the fields the login page reads. */
 function status(overrides: Partial<StatusInfo>): StatusInfo {
@@ -79,5 +88,24 @@ describe('login page passkey gate', () => {
     expect(await screen.findByText('Continue with Google')).toBeInTheDocument()
     // … and the passkey entry point is still absent.
     expect(screen.queryByText('Sign in with Passkey')).not.toBeInTheDocument()
+  })
+})
+
+describe('login page error display', () => {
+  it('surfaces the backend business message through the ApiError gate', async () => {
+    mockStatus.mockResolvedValue(status({}))
+    // The api interceptor rejects normalized ApiError instances — the page's
+    // `e instanceof ApiError ? e.message : t('login.failed')` gate must let
+    // the backend copy through instead of the generic fallback.
+    mockLogin.mockRejectedValue(new ApiError('用户名或密码错误', 400))
+
+    renderLogin()
+
+    await userEvent.type(screen.getByLabelText('Username or email'), 'jimmy')
+    await userEvent.type(screen.getByLabelText('Password'), 'hunter22')
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('用户名或密码错误')).toBeInTheDocument()
+    expect(screen.queryByText('Login failed')).not.toBeInTheDocument()
   })
 })

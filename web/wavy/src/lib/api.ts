@@ -21,12 +21,6 @@ export class ApiError extends Error {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    // Surface the backend's business message ("passkey disabled", "无效的参数", …)
-    // instead of axios's "Request failed with status code NNN".
-    const backendMessage = err.response?.data?.message
-    if (typeof backendMessage === 'string' && backendMessage) {
-      err.message = backendMessage
-    }
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       // Skip /user/self probes — those expect 401 for unauthenticated users
       if (!err.config?.url?.includes('/user/self')) {
@@ -36,7 +30,13 @@ api.interceptors.response.use(
         }
       }
     }
-    return Promise.reject(err)
+    // Reject a normalized ApiError so the `e instanceof ApiError` gates across
+    // the app surface the backend's business message ("passkey disabled",
+    // "无效的参数", …) instead of axios's "Request failed with status code NNN".
+    const backendMessage = err.response?.data?.message
+    const message =
+      typeof backendMessage === 'string' && backendMessage ? backendMessage : err.message
+    return Promise.reject(new ApiError(message, err.response?.status))
   },
 )
 
