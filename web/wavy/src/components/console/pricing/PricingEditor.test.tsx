@@ -160,6 +160,56 @@ describe('<PricingEditor> dirty state and save', () => {
   })
 })
 
+describe('<PricingEditor> free models and orphan completion keys', () => {
+  it('a non-zero output price on a free model (ratio 0) blocks saving', async () => {
+    renderEditor({ modelRatio: { 'glm-4-flash': 0 }, completionRatio: {} })
+    await userEvent.type(screen.getByLabelText('glm-4-flash output price'), '5')
+    expect(modelsSection().getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(modelsSection().getByText('Fix the highlighted values before saving.')).toBeInTheDocument()
+  })
+
+  it('preserves an orphan CompletionRatio key that no table row claims', async () => {
+    const { onSave } = renderEditor({ completionRatio: { 'gpt-4o': 4, 'o1-mini': 3 } })
+    const ratio = screen.getByLabelText('claude-3-haiku model ratio')
+    await userEvent.clear(ratio)
+    await userEvent.type(ratio, '0.5')
+    await userEvent.click(modelsSection().getByRole('button', { name: 'Save' }))
+    await confirmApply()
+
+    const completionCall = onSave.mock.calls[1]
+    expect(JSON.parse(completionCall[1] as string)).toEqual({ 'gpt-4o': 4, 'o1-mini': 3 })
+  })
+
+  it('a newly added row takes over its orphan completion key instead of inheriting it', async () => {
+    const { onSave } = renderEditor({ completionRatio: { 'gpt-4o': 4, 'o1-mini': 3 } })
+    await userEvent.click(screen.getByRole('button', { name: /Add model/ }))
+    await userEvent.type(screen.getByLabelText('new model name'), 'o1-mini')
+    await userEvent.type(screen.getByLabelText('o1-mini model ratio'), '1')
+    await userEvent.click(modelsSection().getByRole('button', { name: 'Save' }))
+    await confirmApply()
+
+    const completionCall = onSave.mock.calls[1]
+    // completion left blank → backend default, the stale orphan value must not survive
+    expect(JSON.parse(completionCall[1] as string)).toEqual({ 'gpt-4o': 4 })
+  })
+
+  it('a CompletionRatio save failure surfaces the error and keeps the section dirty for retry', async () => {
+    const onSave = vi
+      .fn()
+      .mockResolvedValueOnce(undefined) // ModelRatio
+      .mockRejectedValueOnce(new Error('boom')) // CompletionRatio
+    renderEditor({ onSave })
+    const completion = screen.getByLabelText('gpt-4o completion ratio')
+    await userEvent.clear(completion)
+    await userEvent.type(completion, '5')
+    await userEvent.click(modelsSection().getByRole('button', { name: 'Save' }))
+    await confirmApply()
+
+    expect(await screen.findByText('Save failed')).toBeInTheDocument()
+    expect(modelsSection().getByRole('button', { name: 'Save' })).toBeEnabled()
+  })
+})
+
 describe('<PricingEditor> raw JSON mode', () => {
   it('switches to three JSON textareas and saves a pasted blob', async () => {
     const { onSave } = renderEditor()
@@ -178,6 +228,22 @@ describe('<PricingEditor> raw JSON mode', () => {
     await confirmApply()
 
     expect(onSave).toHaveBeenCalledWith('GroupRatio', JSON.stringify({ default: 1, vip: 0.9 }))
+  })
+
+  it('resets the textarea to canonical JSON after a save so it is no longer dirty', async () => {
+    renderEditor()
+    await userEvent.click(screen.getByRole('button', { name: 'Raw JSON' }))
+    const groupArea = screen.getByLabelText('GroupRatio JSON')
+    await userEvent.clear(groupArea)
+    await userEvent.click(groupArea)
+    await userEvent.paste('{"default":1,"vip":0.9}')
+
+    const section = screen.getByText('GroupRatio').closest('section')!
+    await userEvent.click(within(section).getByRole('button', { name: 'Save' }))
+    await confirmApply()
+
+    expect(groupArea).toHaveValue(JSON.stringify({ default: 1, vip: 0.9 }, null, 2))
+    expect(within(section).getByRole('button', { name: /^Saved?$/ })).toBeDisabled()
   })
 
   it('flags invalid JSON and blocks saving', async () => {

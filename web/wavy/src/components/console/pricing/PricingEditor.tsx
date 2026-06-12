@@ -86,6 +86,15 @@ function editModelRow(row: ModelRow, field: ModelField, value: string): ModelRow
   return next
 }
 
+/** A non-zero output price is unstorable when the input price is 0 —
+ * output is persisted as completion = output / input. */
+function outputPriceInvalid(row: ModelRow): boolean {
+  if (row.outputPrice.trim() === '') return false
+  const out = parseRatio(row.outputPrice)
+  if (out === null) return true
+  return parseRatio(row.ratio) === 0 && out !== 0
+}
+
 function dupNames(names: string[]): Set<string> {
   const seen = new Set<string>()
   const dup = new Set<string>()
@@ -175,7 +184,7 @@ export function PricingEditor({ groupRatio, modelRatio, completionRatio, onSave 
     modelDups.has(r.name.trim()) ||
     parseRatio(r.ratio) === null ||
     (r.completion.trim() !== '' && parseRatio(r.completion) === null) ||
-    (r.outputPrice.trim() !== '' && parseRatio(r.outputPrice) === null)
+    outputPriceInvalid(r)
   const groupsInvalid = groups.some(groupRowInvalid)
   const modelsInvalid = models.some(modelRowInvalid)
 
@@ -216,19 +225,26 @@ export function PricingEditor({ groupRatio, modelRatio, completionRatio, onSave 
   function saveModels() {
     void runSave('models', async () => {
       const modelMap: RatioMap = {}
+      for (const r of models) modelMap[r.name.trim()] = parseRatio(r.ratio)!
       // CompletionRatio entries whose key never appeared in the table
       // (prefix-style keys without a ModelRatio entry) are preserved as-is —
-      // the table can't display them, but it must not silently delete them.
+      // unless a row with that exact name now exists, which takes over.
       const completionMap: RatioMap = Object.fromEntries(
-        Object.entries(saved.completion).filter(([k]) => !(k in saved.model)),
+        Object.entries(saved.completion).filter(([k]) => !(k in saved.model) && !(k in modelMap)),
       )
       for (const r of models) {
         const name = r.name.trim()
-        modelMap[name] = parseRatio(r.ratio)!
         if (r.completion.trim() !== '') completionMap[name] = parseRatio(r.completion)!
       }
       await onSave('ModelRatio', JSON.stringify(modelMap))
-      await onSave('CompletionRatio', JSON.stringify(completionMap))
+      try {
+        await onSave('CompletionRatio', JSON.stringify(completionMap))
+      } catch (e) {
+        // ModelRatio is already persisted — record it so dirty tracking
+        // compares against server state and a retry only re-sends the rest.
+        setSaved((s) => ({ ...s, model: modelMap }))
+        throw e
+      }
       setSaved((s) => ({ ...s, model: modelMap, completion: completionMap }))
     })
   }
@@ -239,6 +255,7 @@ export function PricingEditor({ groupRatio, modelRatio, completionRatio, onSave 
     void runSave(key, async () => {
       await onSave(key, JSON.stringify(parsed))
       setSaved((s) => ({ ...s, [FIELD_OF[key]]: parsed }))
+      setRawTexts((s) => ({ ...s, [key]: pretty(parsed) }))
     })
   }
 
@@ -516,7 +533,7 @@ function ModelRowView({
         value={row.outputPrice}
         placeholder={defaultPlaceholder}
         dirty={dirty}
-        invalid={row.outputPrice.trim() !== '' && parseRatio(row.outputPrice) === null}
+        invalid={outputPriceInvalid(row)}
         onChange={(v) => onEdit('outputPrice', v)}
       />
       <DeleteBtn label={deleteLabel} onClick={onDelete} />

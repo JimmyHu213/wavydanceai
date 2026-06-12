@@ -535,6 +535,7 @@
     "lead": "Live billing multipliers for the whole site. Saved changes apply to new requests immediately.",
     "loading": "Loading pricing…",
     "loadError": "The pricing options returned by the server could not be parsed. Fix them via the option API before editing here.",
+    "fetchError": "Failed to load pricing options. Refresh the page to retry.",
     "rawMode": "Raw JSON",
     "tableMode": "Table",
     "save": "Save",

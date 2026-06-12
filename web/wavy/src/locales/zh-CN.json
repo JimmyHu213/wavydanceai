@@ -535,6 +535,7 @@
     "lead": "全站计费倍率，保存后对新请求立即生效。",
     "loading": "正在加载计费配置…",
     "loadError": "服务器返回的计费配置无法解析，请先通过 option API 修复后再在此编辑。",
+    "fetchError": "计费配置加载失败，请刷新页面重试。",
     "rawMode": "Raw JSON",
     "tableMode": "表格",
     "save": "保存",

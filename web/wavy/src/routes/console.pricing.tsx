@@ -27,7 +27,7 @@ function parseOption(value: string | undefined) {
 function PricingPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ['options'],
     queryFn: () => optionsService.list(),
   })
@@ -48,16 +48,16 @@ function PricingPage() {
     <div className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-8 lg:px-10">
       <PageHeader kicker={t('ratios.kicker')} title={t('ratios.title')} lead={t('ratios.lead')} />
 
-      {(isLoading || !initial) && !parseFailed && (
+      {!initial && !isError && (
         <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-5 py-16 text-center text-sm text-[color:var(--muted)]">
           <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
           {t('ratios.loading')}
         </div>
       )}
 
-      {parseFailed && (
+      {(isError || parseFailed) && (
         <div className="rounded-lg border border-[color:var(--coral)]/30 bg-[color:var(--coral)]/8 px-4 py-3 text-sm text-[color:var(--coral)]">
-          {t('ratios.loadError')}
+          {t(isError ? 'ratios.fetchError' : 'ratios.loadError')}
         </div>
       )}
 
