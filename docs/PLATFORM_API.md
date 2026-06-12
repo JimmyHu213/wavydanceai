@@ -423,9 +423,9 @@ discount? }], return_url }`.
 
 | Method | Path                    | Body / Query                                                | data        |
 | ------ | ----------------------- | ----------------------------------------------------------- | ----------- |
-| POST   | `/api/topup`            | `{ user_id, quota, remark }` (manual credit)                | empty       |
-| GET    | `/api/topup`            | `?p&size&user_id&status&gateway&start&end`                  | `Topup[]`   |
-| POST   | `/api/topup/complete`   | `{ trade_no, note? }` (manually settle a pending top‑up)    | empty       |
+| POST   | `/api/topup`                 | `{ user_id, quota, remark }` (manual credit)                | empty       |
+| GET    | `/api/user/topup`            | `?p&size&user_id&status&gateway&start&end`                  | `Topup[]`   |
+| POST   | `/api/user/topup/complete`   | `{ trade_no, note? }` (manually settle a pending top‑up)    | empty       |
 
 ### Payment webhooks (Public — called by gateways, not by you)
 

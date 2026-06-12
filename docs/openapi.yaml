@@ -827,6 +827,28 @@ paths:
         content: { application/json: { schema: { type: object, required: [key], properties: { key: { type: string } } } } }
       responses:
         "200": { description: "data: { quota }", content: { application/json: { schema: { $ref: "#/components/schemas/Envelope" } } } }
+    get:
+      tags: [TopUp]
+      summary: Admin top-up list
+      parameters:
+        - { name: p, in: query, schema: { type: integer } }
+        - { name: size, in: query, schema: { type: integer } }
+        - { name: user_id, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: gateway, in: query, schema: { type: string } }
+        - { name: start, in: query, schema: { type: integer, format: int64 } }
+        - { name: end, in: query, schema: { type: integer, format: int64 } }
+      responses:
+        "200": { description: "data: Topup[]", content: { application/json: { schema: { $ref: "#/components/schemas/Envelope" } } } }
+  /api/user/topup/complete:
+    post:
+      tags: [TopUp]
+      summary: Admin settle a pending top-up
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [trade_no], properties: { trade_no: { type: string }, note: { type: string } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EnvelopeEmpty" } } } }
   /api/user/topup/info:
     get:
       tags: [TopUp]
@@ -904,28 +926,6 @@ paths:
                 user_id: { type: integer }
                 quota: { type: integer }
                 remark: { type: string }
-      responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EnvelopeEmpty" } } } }
-    get:
-      tags: [TopUp]
-      summary: Admin top-up list
-      parameters:
-        - { name: p, in: query, schema: { type: integer } }
-        - { name: size, in: query, schema: { type: integer } }
-        - { name: user_id, in: query, schema: { type: integer } }
-        - { name: status, in: query, schema: { type: string } }
-        - { name: gateway, in: query, schema: { type: string } }
-        - { name: start, in: query, schema: { type: integer, format: int64 } }
-        - { name: end, in: query, schema: { type: integer, format: int64 } }
-      responses:
-        "200": { description: "data: Topup[]", content: { application/json: { schema: { $ref: "#/components/schemas/Envelope" } } } }
-  /api/topup/complete:
-    post:
-      tags: [TopUp]
-      summary: Admin settle a pending top-up
-      requestBody:
-        required: true
-        content: { application/json: { schema: { type: object, required: [trade_no], properties: { trade_no: { type: string }, note: { type: string } } } } }
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/EnvelopeEmpty" } } } }
   /dashboard/billing/subscription:

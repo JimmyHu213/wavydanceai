@@ -30,7 +30,6 @@ const swaggerIndexHTML = `<!DOCTYPE html>
         dom_id: "#swagger-ui",
         deepLinking: true,
         withCredentials: true,
-        persistAuthorization: true,
       });
     };
   </script>
