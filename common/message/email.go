@@ -24,13 +24,17 @@ func SendEmail(subject string, receiver string, content string) error {
 	if receiver == "" {
 		return fmt.Errorf("receiver is empty")
 	}
-	// Validate every recipient before building/sending the message. A receiver
-	// carrying CR/LF could otherwise inject extra SMTP commands or mail headers
-	// (e.g. a hidden Bcc) — net/mail.ParseAddress rejects such addresses.
-	for _, addr := range strings.Split(receiver, ";") {
-		if _, err := netmail.ParseAddress(addr); err != nil {
-			return fmt.Errorf("invalid email recipient %q: %w", addr, err)
+	// Validate and canonicalize recipients once. A receiver carrying CR/LF could
+	// otherwise inject extra SMTP commands or mail headers (e.g. a hidden Bcc) —
+	// net/mail.ParseAddress rejects such addresses. The parsed forms are reused
+	// for the envelope below so the raw string is never re-split.
+	var recipients []string
+	for _, raw := range strings.Split(receiver, ";") {
+		parsed, err := netmail.ParseAddress(strings.TrimSpace(raw))
+		if err != nil {
+			return fmt.Errorf("invalid email recipient %q: %w", raw, err)
 		}
+		recipients = append(recipients, parsed.Address)
 	}
 	if config.SMTPFrom == "" { // for compatibility
 		config.SMTPFrom = config.SMTPAccount
@@ -63,7 +67,7 @@ func SendEmail(subject string, receiver string, content string) error {
 	// net.JoinHostPort brackets IPv6 hosts ([::1]:25); plain "%s:%d" produces
 	// invalid addresses like "::1:25" that net.Dial rejects.
 	addr := net.JoinHostPort(config.SMTPServer, strconv.Itoa(config.SMTPPort))
-	to := strings.Split(receiver, ";")
+	to := recipients
 
 	if config.SMTPPort == 465 || !shouldAuth() {
 		// need advanced client
@@ -94,9 +98,8 @@ func SendEmail(subject string, receiver string, content string) error {
 		if err = client.Mail(config.SMTPFrom); err != nil {
 			return err
 		}
-		receiverEmails := strings.Split(receiver, ";")
-		for _, receiver := range receiverEmails {
-			if err = client.Rcpt(receiver); err != nil {
+		for _, recipient := range recipients {
+			if err = client.Rcpt(recipient); err != nil {
 				return err
 			}
 		}

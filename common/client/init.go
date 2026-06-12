@@ -35,6 +35,7 @@ func Init() {
 		// proxy IS configured above the admin has opted into that egress path,
 		// so the guard does not apply there.
 		UserContentRequestHTTPClient = &http.Client{
+			Timeout: time.Second * time.Duration(config.UserContentRequestTimeout),
 			Transport: &http.Transport{
 				DialContext: (&net.Dialer{Control: ssrfDialControl}).DialContext,
 			},
