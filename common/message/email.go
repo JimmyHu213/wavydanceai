@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	netmail "net/mail"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -22,6 +23,14 @@ func shouldAuth() bool {
 func SendEmail(subject string, receiver string, content string) error {
 	if receiver == "" {
 		return fmt.Errorf("receiver is empty")
+	}
+	// Validate every recipient before building/sending the message. A receiver
+	// carrying CR/LF could otherwise inject extra SMTP commands or mail headers
+	// (e.g. a hidden Bcc) — net/mail.ParseAddress rejects such addresses.
+	for _, addr := range strings.Split(receiver, ";") {
+		if _, err := netmail.ParseAddress(addr); err != nil {
+			return fmt.Errorf("invalid email recipient %q: %w", addr, err)
+		}
 	}
 	if config.SMTPFrom == "" { // for compatibility
 		config.SMTPFrom = config.SMTPAccount
@@ -62,7 +71,7 @@ func SendEmail(subject string, receiver string, content string) error {
 		var err error
 		if config.SMTPPort == 465 {
 			tlsConfig := &tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: config.SMTPSSLInsecureSkipVerify,
 				ServerName:         config.SMTPServer,
 			}
 			conn, err = tls.Dial("tcp", addr, tlsConfig)
