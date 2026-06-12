@@ -46,6 +46,16 @@ func TestShouldSendQuotaWarning_NotCrossing(t *testing.T) {
 	require.False(t, shouldSendQuotaWarning(2, 400000, 300000, now), "already below before the deduction — no re-fire")
 }
 
+// Pin the boundary semantics: a balance sitting exactly at the threshold
+// still counts as "above" before the deduction (pre == T warns) and as
+// "not yet below" after it (post == T doesn't warn).
+func TestShouldSendQuotaWarning_ThresholdBoundaries(t *testing.T) {
+	resetQuotaWarningState(t)
+	now := time.Now()
+	require.True(t, shouldSendQuotaWarning(1, 500000, 499999, now), "pre exactly at threshold then dropping below must warn")
+	require.False(t, shouldSendQuotaWarning(2, 600000, 500000, now), "post exactly at threshold has not crossed yet")
+}
+
 func TestShouldSendQuotaWarning_AtZero(t *testing.T) {
 	resetQuotaWarningState(t)
 	now := time.Now()
@@ -103,6 +113,14 @@ func TestBuildQuotaWarningEmail_Exhausted(t *testing.T) {
 	require.Equal(t, "Your Wavy Dance AI balance has run out", subject)
 	require.Contains(t, content, "has run out")
 	require.Contains(t, content, "https://wavydance.ai/console/topup")
+}
+
+func TestBuildQuotaWarningEmail_TrailingSlashServerAddress(t *testing.T) {
+	setEmailConfig(t)
+	config.ServerAddress = "https://wavydance.ai/"
+	_, content := buildQuotaWarningEmail(400000)
+	require.Contains(t, content, "https://wavydance.ai/console/topup")
+	require.NotContains(t, content, "wavydance.ai//console", "trailing slash in ServerAddress must not double up")
 }
 
 func TestQuotaDollars(t *testing.T) {
