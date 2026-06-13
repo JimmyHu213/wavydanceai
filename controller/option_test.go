@@ -55,12 +55,33 @@ func TestUpdateOptionsBatchPersistsAtomically(t *testing.T) {
 
 func TestUpdateOptionsBatchRejectsInvalidGuard(t *testing.T) {
 	e := setupOptionCtrlTest(t)
-	config.GitHubClientId = "" // enabling GitHub OAuth without a client id is rejected
+	config.GitHubClientId = "" // enabling GitHub OAuth without credentials is rejected
+	config.GitHubClientSecret = ""
 	w := putBatch(e, `{"keys":{"GitHubOAuthEnabled":"true"}}`)
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, false, decodeJSON(t, w)["success"])
 	_, has := config.OptionMap["GitHubOAuthEnabled"]
 	require.False(t, has, "a rejected batch must persist nothing")
+}
+
+func TestUpdateOptionsBatchRequiresBothGitHubCreds(t *testing.T) {
+	e := setupOptionCtrlTest(t)
+	config.GitHubClientId = ""
+	config.GitHubClientSecret = ""
+	// Client id present (in-batch) but secret still missing → still rejected.
+	w := putBatch(e, `{"keys":{"GitHubClientId":"id","GitHubOAuthEnabled":"true"}}`)
+	require.Equal(t, false, decodeJSON(t, w)["success"])
+}
+
+func TestUpdateOptionsBatchValidatesEffectiveState(t *testing.T) {
+	e := setupOptionCtrlTest(t)
+	config.GitHubClientId = ""
+	config.GitHubClientSecret = ""
+	// Supplying both credentials and the toggle in the SAME batch must be
+	// accepted regardless of map iteration order (batch-aware validation).
+	w := putBatch(e, `{"keys":{"GitHubClientId":"id","GitHubClientSecret":"sec","GitHubOAuthEnabled":"true"}}`)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, true, decodeJSON(t, w)["success"])
 }
 
 func TestUpdateOptionsBatchRejectsEmptyBody(t *testing.T) {

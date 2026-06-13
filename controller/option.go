@@ -44,7 +44,7 @@ func UpdateOption(c *gin.Context) {
 		})
 		return
 	}
-	if msg := optionUpdateRejection(option.Key, option.Value); msg != "" {
+	if msg := optionUpdateRejection(option.Key, option.Value, map[string]string{option.Key: option.Value}); msg != "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": msg,
@@ -70,26 +70,42 @@ func UpdateOption(c *gin.Context) {
 // value is not allowed (e.g. enabling an OAuth provider before its credentials
 // are configured), or "" if the update may proceed. Shared by the single-key
 // UpdateOption and the batch UpdateOptionsBatch so both validate identically.
-func optionUpdateRejection(key, value string) string {
+//
+// pending is the set of key→value writes happening in the same request. A
+// dependency (e.g. GitHubClientId) supplied in the same batch must satisfy a
+// toggle's guard, so guards consult the post-batch ("effective") value rather
+// than only the current live config — otherwise a single batch that sets the
+// credential and enables the feature together would be rejected depending on
+// map iteration order.
+func optionUpdateRejection(key, value string, pending map[string]string) string {
+	// effective returns the value a config field will hold after this request:
+	// a pending write wins over the current value.
+	effective := func(depKey, current string) string {
+		if v, ok := pending[depKey]; ok {
+			return v
+		}
+		return current
+	}
 	switch key {
 	case "Theme":
 		if !config.ValidThemes[value] {
 			return "无效的主题"
 		}
 	case "GitHubOAuthEnabled":
-		if value == "true" && config.GitHubClientId == "" {
+		if value == "true" && (effective("GitHubClientId", config.GitHubClientId) == "" ||
+			effective("GitHubClientSecret", config.GitHubClientSecret) == "") {
 			return "无法启用 GitHub OAuth，请先填入 GitHub Client Id 以及 GitHub Client Secret！"
 		}
 	case "EmailDomainRestrictionEnabled":
-		if value == "true" && len(config.EmailDomainWhitelist) == 0 {
+		if value == "true" && effective("EmailDomainWhitelist", strings.Join(config.EmailDomainWhitelist, ",")) == "" {
 			return "无法启用邮箱域名限制，请先填入限制的邮箱域名！"
 		}
 	case "WeChatAuthEnabled":
-		if value == "true" && config.WeChatServerAddress == "" {
+		if value == "true" && effective("WeChatServerAddress", config.WeChatServerAddress) == "" {
 			return "无法启用微信登录，请先填入微信登录相关配置信息！"
 		}
 	case "TurnstileCheckEnabled":
-		if value == "true" && config.TurnstileSiteKey == "" {
+		if value == "true" && effective("TurnstileSiteKey", config.TurnstileSiteKey) == "" {
 			return "无法启用 Turnstile 校验，请先填入 Turnstile 校验相关配置信息！"
 		}
 	}
@@ -112,7 +128,7 @@ func UpdateOptionsBatch(c *gin.Context) {
 		return
 	}
 	for key, value := range req.Keys {
-		if msg := optionUpdateRejection(key, value); msg != "" {
+		if msg := optionUpdateRejection(key, value, req.Keys); msg != "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": msg,

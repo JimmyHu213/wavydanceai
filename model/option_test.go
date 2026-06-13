@@ -56,3 +56,11 @@ func TestUpdateOptionsEmptyIsNoop(t *testing.T) {
 	setupOptionTestDB(t)
 	require.NoError(t, UpdateOptions(map[string]string{}))
 }
+
+func TestUpdateOptionsSurfacesPostCommitError(t *testing.T) {
+	setupOptionTestDB(t)
+	// ModelRatio carries invalid JSON: the DB write commits but the post-commit
+	// updateOptionMap (ratio parse) fails. UpdateOptions must surface the error
+	// and resync the in-memory map from DB rather than swallowing it.
+	require.Error(t, UpdateOptions(map[string]string{"ModelRatio": "not-json"}))
+}

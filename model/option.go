@@ -171,6 +171,10 @@ func UpdateOptions(options map[string]string) error {
 	// DB committed — now reflect the new values in the in-memory OptionMap.
 	for key, value := range options {
 		if err := updateOptionMap(key, value); err != nil {
+			// The DB already holds the full batch, but in-memory application is
+			// now partial. Resync the whole OptionMap from the committed DB
+			// state so readers never see a half-applied batch.
+			loadOptionsFromDatabase()
 			return err
 		}
 	}
