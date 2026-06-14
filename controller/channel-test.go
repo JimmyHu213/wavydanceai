@@ -19,6 +19,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/common/message"
@@ -170,18 +171,12 @@ func TestChannel(c *gin.Context) {
 	ctx := c.Request.Context()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	channel, err := model.GetChannelById(id, true)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ChannelNotFound, err.Error())
 		return
 	}
 	modelName := c.Query("model")
@@ -198,6 +193,7 @@ func TestChannel(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"success":   false,
+			"code":      errcode.ChannelTestFailed,
 			"message":   err.Error(),
 			"time":      consumedTime,
 			"modelName": modelName,

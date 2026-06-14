@@ -3,6 +3,7 @@ package controller
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/model"
 	"net/http"
@@ -52,18 +53,12 @@ func SearchChannels(c *gin.Context) {
 func GetChannel(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	channel, err := model.GetChannelById(id, false)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ChannelNotFound, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -78,10 +73,7 @@ func AddChannel(c *gin.Context) {
 	channel := model.Channel{}
 	err := c.ShouldBindJSON(&channel)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	channel.CreatedTime = helper.GetTimestamp()
@@ -97,10 +89,7 @@ func AddChannel(c *gin.Context) {
 	}
 	err = model.BatchInsertChannels(channels)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ChannelSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -115,10 +104,7 @@ func DeleteChannel(c *gin.Context) {
 	channel := model.Channel{Id: id}
 	err := channel.Delete()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ChannelSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -149,18 +135,12 @@ func UpdateChannel(c *gin.Context) {
 	channel := model.Channel{}
 	err := c.ShouldBindJSON(&channel)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	err = channel.Update()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ChannelSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

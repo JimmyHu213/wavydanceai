@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogActions, DialogError, Field, Select, TextArea } from './Dialog'
 import { CHANNEL_TYPE, channelsService } from '@/lib/services/channels'
 import { groupsService } from '@/lib/services/groups'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import type { Channel } from '@/lib/types'
 
 type Mode = { kind: 'create' } | { kind: 'edit'; id: number }
@@ -138,7 +138,7 @@ export function ChannelDialog({ open, mode, onClose, onSaved }: Props) {
       }
       onSaved()
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : 'save failed')
+      setErr(errorText(e, t, t('errors.channel.save_failed')))
     } finally {
       setSubmitting(false)
     }

@@ -35,6 +35,11 @@ const (
 	TokenExpired    = "token.expired"
 	TokenExhausted  = "token.exhausted"
 	TokenSaveFailed = "token.save_failed"
+
+	// channel
+	ChannelNotFound   = "channel.not_found"
+	ChannelSaveFailed = "channel.save_failed"
+	ChannelTestFailed = "channel.test_failed"
 )
 
 // All returns every defined code; used by tests to guard uniqueness/format.
@@ -61,5 +66,8 @@ func All() []string {
 		TokenExpired,
 		TokenExhausted,
 		TokenSaveFailed,
+		ChannelNotFound,
+		ChannelSaveFailed,
+		ChannelTestFailed,
 	}
 }
