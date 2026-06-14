@@ -12,7 +12,7 @@ export const api = axios.create({
  * Normalize all calls: throw on `success === false`, return `data` on success.
  */
 export class ApiError extends Error {
-  constructor(public message: string, public status?: number) {
+  constructor(public message: string, public status?: number, public code?: string) {
     super(message)
     this.name = 'ApiError'
   }
@@ -36,12 +36,14 @@ api.interceptors.response.use(
     const backendMessage = err.response?.data?.message
     const message =
       typeof backendMessage === 'string' && backendMessage ? backendMessage : err.message
-    return Promise.reject(new ApiError(message, err.response?.status))
+    const code =
+      typeof err.response?.data?.code === 'string' ? err.response.data.code : undefined
+    return Promise.reject(new ApiError(message, err.response?.status, code))
   },
 )
 
 /** Unwrap a response envelope; throw ApiError if backend returned `success: false`. */
 export function unwrap<T>(res: AxiosResponse<ApiResponse<T>>): T {
-  if (!res.data.success) throw new ApiError(res.data.message || 'request failed', res.status)
+  if (!res.data.success) throw new ApiError(res.data.message || 'request failed', res.status, res.data.code)
   return res.data.data as T
 }
