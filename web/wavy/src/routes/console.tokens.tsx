@@ -9,7 +9,7 @@ import { DataTable, Pager, StatusPill, type Column } from '@/components/console/
 import { tokensService } from '@/lib/services/tokens'
 import { Dialog } from '@/components/console/Dialog'
 import { useConfirm } from '@/components/ui/AppDialogs'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { TokenStatus, type Token } from '@/lib/types'
 
 export const Route = createFileRoute('/console/tokens')({
@@ -37,7 +37,7 @@ function TokensPage() {
       setErr(null)
       qc.invalidateQueries({ queryKey: ['tokens'] })
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : t('tk.actionFailed')),
+    onError: (e) => setErr(errorText(e, t, t('tk.actionFailed'))),
   })
 
   const update = useMutation({
@@ -46,7 +46,7 @@ function TokensPage() {
       setErr(null)
       qc.invalidateQueries({ queryKey: ['tokens'] })
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : t('tk.actionFailed')),
+    onError: (e) => setErr(errorText(e, t, t('tk.actionFailed'))),
   })
 
   const columns: Column<Token>[] = [
@@ -261,7 +261,7 @@ function CreateTokenModal({ onClose, onCreated }: { onClose: () => void; onCreat
       })
       onCreated()
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Failed')
+      setErr(errorText(e, t, t('tk.actionFailed')))
       setSubmitting(false)
     }
   }

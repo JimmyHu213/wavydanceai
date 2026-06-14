@@ -29,6 +29,12 @@ const (
 	// email
 	EmailDomainNotAllowed = "email.domain_not_allowed"
 	EmailSendFailed       = "email.send_failed"
+
+	// token
+	TokenNotFound   = "token.not_found"
+	TokenExpired    = "token.expired"
+	TokenExhausted  = "token.exhausted"
+	TokenSaveFailed = "token.save_failed"
 )
 
 // All returns every defined code; used by tests to guard uniqueness/format.
@@ -51,5 +57,9 @@ func All() []string {
 		UserPasswordResetFailed,
 		EmailDomainNotAllowed,
 		EmailSendFailed,
+		TokenNotFound,
+		TokenExpired,
+		TokenExhausted,
+		TokenSaveFailed,
 	}
 }
