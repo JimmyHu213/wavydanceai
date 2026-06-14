@@ -14,6 +14,7 @@ import (
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/i18n"
 	"github.com/songquanpeng/one-api/common/random"
 	"github.com/songquanpeng/one-api/model"
@@ -26,28 +27,19 @@ type LoginRequest struct {
 
 func Login(c *gin.Context) {
 	if !config.PasswordLoginEnabled {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "管理员关闭了密码登录",
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.AuthLoginDisabled, "管理员关闭了密码登录")
 		return
 	}
 	var loginRequest LoginRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&loginRequest)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"message": i18n.Translate(c, "invalid_parameter"),
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	username := loginRequest.Username
 	password := loginRequest.Password
 	if username == "" || password == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"message": i18n.Translate(c, "invalid_parameter"),
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	user := model.User{
@@ -56,10 +48,7 @@ func Login(c *gin.Context) {
 	}
 	err = user.ValidateAndFill()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"message": err.Error(),
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.AuthInvalidCredentials, err.Error())
 		return
 	}
 	hasPasskey := model.HasPasskey(user.Id)
@@ -70,7 +59,7 @@ func Login(c *gin.Context) {
 		session := sessions.Default(c)
 		session.Set(sessionKeyPending2FAUserId, user.Id)
 		if err := session.Save(); err != nil {
-			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			SendError(c, http.StatusOK, errcode.ServerSessionSaveFailed, err.Error())
 			return
 		}
 		methods := make([]string, 0, 2)
@@ -102,10 +91,7 @@ func SetupLogin(user *model.User, c *gin.Context) {
 	session.Set("status", user.Status)
 	err := session.Save()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "无法保存会话信息，请重试",
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.ServerSessionSaveFailed, "无法保存会话信息，请重试")
 		return
 	}
 	cleanUser := model.User{
