@@ -791,6 +791,12 @@
     "privacy": "Privacy",
     "terms": "Terms"
   },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "param": { "invalid": "Invalid input." },
+    "server": { "internal": "Server error. Please try again.", "session_save_failed": "Could not save your session. Please try again." },
+    "auth": { "login_disabled": "Password login is disabled.", "invalid_credentials": "Incorrect username or password, or the account is disabled." }
+  },
   "docs": {
     "topbar": { "kicker": "Docs" },
     "sidebar": {

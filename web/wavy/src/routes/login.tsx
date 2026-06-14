@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button'
 import { authService, isTwoFAChallenge } from '@/lib/services/auth'
 import { twofaService } from '@/lib/services/twofa'
 import { clearSessionCache, getSession } from '@/lib/session'
-import { ApiError } from '@/lib/api'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
+import { errorText } from '@/lib/errorText'
 import { statusService } from '@/lib/services/status'
 import { passkeyService } from '@/lib/services/passkey'
 import { isWebAuthnSupported } from '@/components/passkey/passkey-ceremonies'
@@ -87,7 +87,7 @@ function LoginPage() {
       }
       afterLogin()
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('login.failed'))
+      setErr(errorText(e, t, t('login.failed')))
     } finally {
       setLoading(false)
     }
@@ -128,7 +128,7 @@ function LoginPage() {
                     await passkeyService.loginSecondFactor()
                     afterLogin()
                   } catch (e) {
-                    setErr(e instanceof ApiError ? e.message : t('login.failed'))
+                    setErr(errorText(e, t, t('login.failed')))
                   } finally {
                     setLoading(false)
                   }
@@ -159,7 +159,7 @@ function LoginPage() {
                     await passkeyService.loginSecondFactor()
                     afterLogin()
                   } catch (e) {
-                    setErr(e instanceof ApiError ? e.message : t('login.failed'))
+                    setErr(errorText(e, t, t('login.failed')))
                   } finally {
                     setLoading(false)
                   }
@@ -246,7 +246,7 @@ function LoginPage() {
                   await passkeyService.loginPasswordless(username.trim())
                   afterLogin()
                 } catch (e) {
-                  setErr(e instanceof ApiError ? e.message : t('login.failed'))
+                  setErr(errorText(e, t, t('login.failed')))
                 } finally {
                   setLoading(false)
                 }

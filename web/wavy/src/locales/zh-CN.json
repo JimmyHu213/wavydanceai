@@ -791,6 +791,12 @@
     "privacy": "隐私",
     "terms": "条款"
   },
+  "errors": {
+    "generic": "出错了，请重试。",
+    "param": { "invalid": "参数有误。" },
+    "server": { "internal": "服务器错误，请重试。", "session_save_failed": "无法保存会话信息，请重试。" },
+    "auth": { "login_disabled": "管理员关闭了密码登录。", "invalid_credentials": "用户名或密码错误，或账号已被封禁。" }
+  },
   "docs": {
     "topbar": { "kicker": "文档" },
     "sidebar": {

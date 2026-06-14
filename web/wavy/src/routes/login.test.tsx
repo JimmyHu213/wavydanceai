@@ -108,4 +108,22 @@ describe('login page error display', () => {
     expect(await screen.findByText('用户名或密码错误')).toBeInTheDocument()
     expect(screen.queryByText('Login failed')).not.toBeInTheDocument()
   })
+
+  it('shows the localized string for a coded auth.invalid_credentials error', async () => {
+    mockStatus.mockResolvedValue(status({}))
+    // Backend sends a coded error — errorText should resolve it to the catalog key.
+    mockLogin.mockRejectedValue(new ApiError('后端原文', 200, 'auth.invalid_credentials'))
+
+    renderLogin()
+
+    await userEvent.type(screen.getByLabelText('Username or email'), 'jimmy')
+    await userEvent.type(screen.getByLabelText('Password'), 'hunter22')
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(
+      await screen.findByText('Incorrect username or password, or the account is disabled.'),
+    ).toBeInTheDocument()
+    // Raw backend message must not leak through.
+    expect(screen.queryByText('后端原文')).not.toBeInTheDocument()
+  })
 })
