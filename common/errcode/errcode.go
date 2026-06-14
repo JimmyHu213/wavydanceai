@@ -46,6 +46,17 @@ const (
 	TopupGatewayUnavailable = "topup.gateway_unavailable"
 	TopupAmountBelowMinimum = "topup.amount_below_minimum"
 	TopupRedeemFailed       = "topup.redeem_failed"
+
+	// option
+	OptionInvalidValue = "option.invalid_value"
+	OptionSaveFailed   = "option.save_failed"
+
+	// playground
+	PlaygroundTokenFailed  = "playground.token_failed"
+	PlaygroundModelsFailed = "playground.models_failed"
+
+	// auth (cont.)
+	AuthUnauthenticated = "auth.unauthenticated"
 )
 
 // All returns every defined code; used by tests to guard uniqueness/format.
@@ -79,5 +90,10 @@ func All() []string {
 		TopupGatewayUnavailable,
 		TopupAmountBelowMinimum,
 		TopupRedeemFailed,
+		OptionInvalidValue,
+		OptionSaveFailed,
+		PlaygroundTokenFailed,
+		PlaygroundModelsFailed,
+		AuthUnauthenticated,
 	}
 }

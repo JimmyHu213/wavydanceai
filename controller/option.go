@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/i18n"
 	"github.com/songquanpeng/one-api/model"
@@ -38,25 +39,16 @@ func UpdateOption(c *gin.Context) {
 	var option model.Option
 	err := json.NewDecoder(c.Request.Body).Decode(&option)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusBadRequest, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	if msg := optionUpdateRejection(option.Key, option.Value, map[string]string{option.Key: option.Value}); msg != "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": msg,
-		})
+		SendError(c, http.StatusOK, errcode.OptionInvalidValue, msg)
 		return
 	}
 	err = model.UpdateOption(option.Key, option.Value)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.OptionSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -121,26 +113,17 @@ func UpdateOptionsBatch(c *gin.Context) {
 		Keys map[string]string `json:"keys"`
 	}
 	if err := json.NewDecoder(c.Request.Body).Decode(&req); err != nil || len(req.Keys) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusBadRequest, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	for key, value := range req.Keys {
 		if msg := optionUpdateRejection(key, value, req.Keys); msg != "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": msg,
-			})
+			SendError(c, http.StatusOK, errcode.OptionInvalidValue, msg)
 			return
 		}
 	}
 	if err := model.UpdateOptions(req.Keys); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.OptionSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

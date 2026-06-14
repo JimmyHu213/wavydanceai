@@ -4,7 +4,7 @@ import { Braces, Plus, Save, Table2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Pager } from '@/components/console/DataTable'
 import { useConfirm } from '@/components/ui/AppDialogs'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { formatNum, parseRatio, parseRatioMap, ratioToUsd, usdToRatio } from '@/lib/pricing'
 import { cn } from '@/lib/cn'
 
@@ -210,7 +210,7 @@ export function PricingEditor({ groupRatio, modelRatio, completionRatio, onSave,
       await fn()
       flashSaved(section)
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('ratios.saveFailed'))
+      setErr(errorText(e, t, t('ratios.saveFailed')))
     } finally {
       setBusy(false)
     }
