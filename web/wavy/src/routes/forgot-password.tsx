@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/lib/services/auth'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { AuthShell } from '@/components/auth/AuthShell'
 import { TurnstileWidget, useTurnstile } from '@/components/auth/Turnstile'
 
@@ -42,7 +42,7 @@ function ForgotPasswordPage() {
       setSent(true)
       setCooldown(60)
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('forgot.failed'))
+      setErr(errorText(e, t, t('forgot.failed')))
       // Tokens are single-use — siteverify consumed it even though the request
       // failed, so fetch a fresh one before the user retries.
       turnstile.reset()

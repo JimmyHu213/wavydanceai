@@ -128,26 +128,17 @@ func Logout(c *gin.Context) {
 func Register(c *gin.Context) {
 	ctx := c.Request.Context()
 	if !config.RegisterEnabled {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "管理员关闭了新用户注册",
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.AuthRegisterDisabled, "管理员关闭了新用户注册")
 		return
 	}
 	if !config.PasswordRegisterEnabled {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "管理员关闭了通过密码进行注册，请使用第三方账户验证的形式进行注册",
-			"success": false,
-		})
+		SendError(c, http.StatusOK, errcode.AuthRegisterDisabled, "管理员关闭了通过密码进行注册，请使用第三方账户验证的形式进行注册")
 		return
 	}
 	var user model.User
 	err := json.NewDecoder(c.Request.Body).Decode(&user)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	if err := common.Validate.Struct(&user); err != nil {
@@ -169,32 +160,20 @@ func Register(c *gin.Context) {
 				}
 			}
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, msgKey),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, msgKey))
 		return
 	}
 	if !common.IsPasswordComplexEnough(user.Password) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_password_complexity"),
-		})
+		SendError(c, http.StatusOK, errcode.AuthPasswordComplexity, i18n.Translate(c, "invalid_password_complexity"))
 		return
 	}
 	if config.EmailVerificationEnabled {
 		if user.Email == "" || user.VerificationCode == "" {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "管理员开启了邮箱验证，请输入邮箱地址和验证码",
-			})
+			SendError(c, http.StatusOK, errcode.AuthVerificationRequired, "管理员开启了邮箱验证，请输入邮箱地址和验证码")
 			return
 		}
 		if !common.VerifyCodeWithKey(user.Email, user.VerificationCode, common.EmailVerificationPurpose) {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "验证码错误或已过期",
-			})
+			SendError(c, http.StatusOK, errcode.AuthVerificationFailed, "验证码错误或已过期")
 			return
 		}
 	}
@@ -204,10 +183,7 @@ func Register(c *gin.Context) {
 	// case the DB unique index trips Insert below — we accept the raw error
 	// surface for that rare race.
 	if model.IsUsernameAlreadyTaken(user.Username) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "username_taken"),
-		})
+		SendError(c, http.StatusOK, errcode.UserUsernameTaken, i18n.Translate(c, "username_taken"))
 		return
 	}
 	// Email uniqueness is enforced whenever an email is provided, not just
@@ -215,10 +191,7 @@ func Register(c *gin.Context) {
 	// the same address can register N accounts, which silently breaks the
 	// password-reset flow (it does FillUserByEmail and assumes 1:1 mapping).
 	if user.Email != "" && model.IsEmailAlreadyTaken(user.Email) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "email_taken"),
-		})
+		SendError(c, http.StatusOK, errcode.UserEmailTaken, i18n.Translate(c, "email_taken"))
 		return
 	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
@@ -235,10 +208,7 @@ func Register(c *gin.Context) {
 		Email: user.Email,
 	}
 	if err := cleanUser.Insert(ctx, inviterId); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.UserCreateFailed, err.Error())
 		return
 	}
 

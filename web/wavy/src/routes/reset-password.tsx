@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Check, Copy, Loader2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/lib/services/auth'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { AuthShell } from '@/components/auth/AuthShell'
 
 /**
@@ -38,7 +38,7 @@ function ResetPasswordPage() {
       const { password } = await authService.resetPassword(email, token)
       setNewPassword(password)
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('reset.failed'))
+      setErr(errorText(e, t, t('reset.failed')))
     } finally {
       setSubmitting(false)
     }

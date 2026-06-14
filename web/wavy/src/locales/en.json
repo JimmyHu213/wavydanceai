@@ -795,7 +795,9 @@
     "generic": "Something went wrong. Please try again.",
     "param": { "invalid": "Invalid input." },
     "server": { "internal": "Server error. Please try again.", "session_save_failed": "Could not save your session. Please try again." },
-    "auth": { "login_disabled": "Password login is disabled.", "invalid_credentials": "Incorrect username or password, or the account is disabled." }
+    "auth": { "login_disabled": "Password login is disabled.", "invalid_credentials": "Incorrect username or password, or the account is disabled.", "register_disabled": "Registration is currently disabled.", "password_complexity": "Password is not complex enough.", "verification_required": "Email verification is required. Please enter your email and the verification code.", "verification_failed": "The verification code is incorrect or has expired.", "reset_link_invalid": "This reset link is invalid or has expired." },
+    "user": { "username_taken": "That username is already taken.", "email_taken": "That email address is already in use.", "create_failed": "Could not create your account. Please try again.", "email_not_registered": "That email address is not registered.", "password_reset_failed": "Could not reset your password. Please try again." },
+    "email": { "domain_not_allowed": "Your email domain is not on the allowed list.", "send_failed": "Could not send the email. Please try again." }
   },
   "docs": {
     "topbar": { "kicker": "Docs" },

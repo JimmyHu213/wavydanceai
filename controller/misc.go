@@ -10,6 +10,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common"
 	"github.com/songquanpeng/one-api/common/config"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/i18n"
 	"github.com/songquanpeng/one-api/common/message"
 	"github.com/songquanpeng/one-api/model"
@@ -92,10 +93,7 @@ func GetHomePageContent(c *gin.Context) {
 func SendEmailVerification(c *gin.Context) {
 	email := c.Query("email")
 	if err := common.Validate.Var(email, "required,email"); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	if config.EmailDomainRestrictionEnabled {
@@ -107,18 +105,12 @@ func SendEmailVerification(c *gin.Context) {
 			}
 		}
 		if !allowed {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "管理员启用了邮箱域名白名单，您的邮箱地址的域名不在白名单中",
-			})
+			SendError(c, http.StatusOK, errcode.EmailDomainNotAllowed, "管理员启用了邮箱域名白名单，您的邮箱地址的域名不在白名单中")
 			return
 		}
 	}
 	if model.IsEmailAlreadyTaken(email) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "邮箱地址已被占用",
-		})
+		SendError(c, http.StatusOK, errcode.UserEmailTaken, "邮箱地址已被占用")
 		return
 	}
 	code := common.GenerateVerificationCode(6)
@@ -135,10 +127,7 @@ func SendEmailVerification(c *gin.Context) {
 	)
 	err := message.SendEmail(subject, email, content)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.EmailSendFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -151,17 +140,11 @@ func SendEmailVerification(c *gin.Context) {
 func SendPasswordResetEmail(c *gin.Context) {
 	email := c.Query("email")
 	if err := common.Validate.Var(email, "required,email"); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	if !model.IsEmailAlreadyTaken(email) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "该邮箱地址未注册",
-		})
+		SendError(c, http.StatusOK, errcode.UserEmailNotRegistered, "该邮箱地址未注册")
 		return
 	}
 	code := common.GenerateVerificationCode(0)
@@ -185,10 +168,7 @@ func SendPasswordResetEmail(c *gin.Context) {
 	)
 	err := message.SendEmail(subject, email, content)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("%s%s", i18n.Translate(c, "send_email_failed"), err.Error()),
-		})
+		SendError(c, http.StatusOK, errcode.EmailSendFailed, fmt.Sprintf("%s%s", i18n.Translate(c, "send_email_failed"), err.Error()))
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -207,26 +187,17 @@ func ResetPassword(c *gin.Context) {
 	var req PasswordResetRequest
 	err := json.NewDecoder(c.Request.Body).Decode(&req)
 	if req.Email == "" || req.Token == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": i18n.Translate(c, "invalid_parameter"),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, i18n.Translate(c, "invalid_parameter"))
 		return
 	}
 	if !common.VerifyCodeWithKey(req.Email, req.Token, common.PasswordResetPurpose) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "重置链接非法或已过期",
-		})
+		SendError(c, http.StatusOK, errcode.AuthResetLinkInvalid, "重置链接非法或已过期")
 		return
 	}
 	password := common.GenerateVerificationCode(12)
 	err = model.ResetUserPasswordByEmail(req.Email, password)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.UserPasswordResetFailed, err.Error())
 		return
 	}
 	common.DeleteKey(req.Email, common.PasswordResetPurpose)

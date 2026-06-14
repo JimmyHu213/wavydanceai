@@ -795,7 +795,9 @@
     "generic": "出错了，请重试。",
     "param": { "invalid": "参数有误。" },
     "server": { "internal": "服务器错误，请重试。", "session_save_failed": "无法保存会话信息，请重试。" },
-    "auth": { "login_disabled": "管理员关闭了密码登录。", "invalid_credentials": "用户名或密码错误，或账号已被封禁。" }
+    "auth": { "login_disabled": "管理员关闭了密码登录。", "invalid_credentials": "用户名或密码错误，或账号已被封禁。", "register_disabled": "当前已关闭注册。", "password_complexity": "密码复杂度不足。", "verification_required": "管理员开启了邮箱验证，请输入邮箱地址和验证码。", "verification_failed": "验证码错误或已过期。", "reset_link_invalid": "重置链接非法或已过期。" },
+    "user": { "username_taken": "该用户名已被占用。", "email_taken": "该邮箱地址已被占用。", "create_failed": "创建账号失败，请重试。", "email_not_registered": "该邮箱地址未注册。", "password_reset_failed": "重置密码失败，请重试。" },
+    "email": { "domain_not_allowed": "您的邮箱域名不在白名单中。", "send_failed": "发送邮件失败，请重试。" }
   },
   "docs": {
     "topbar": { "kicker": "文档" },

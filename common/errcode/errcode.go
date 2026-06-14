@@ -11,8 +11,24 @@ const (
 	ServerSessionSaveFailed = "server.session_save_failed"
 
 	// auth
-	AuthLoginDisabled      = "auth.login_disabled"
-	AuthInvalidCredentials = "auth.invalid_credentials"
+	AuthLoginDisabled        = "auth.login_disabled"
+	AuthInvalidCredentials   = "auth.invalid_credentials"
+	AuthRegisterDisabled     = "auth.register_disabled"
+	AuthPasswordComplexity   = "auth.password_complexity"
+	AuthVerificationRequired = "auth.verification_required"
+	AuthVerificationFailed   = "auth.verification_failed"
+	AuthResetLinkInvalid     = "auth.reset_link_invalid"
+
+	// user
+	UserUsernameTaken       = "user.username_taken"
+	UserEmailTaken          = "user.email_taken"
+	UserCreateFailed        = "user.create_failed"
+	UserEmailNotRegistered  = "user.email_not_registered"
+	UserPasswordResetFailed = "user.password_reset_failed"
+
+	// email
+	EmailDomainNotAllowed = "email.domain_not_allowed"
+	EmailSendFailed       = "email.send_failed"
 )
 
 // All returns every defined code; used by tests to guard uniqueness/format.
@@ -23,5 +39,17 @@ func All() []string {
 		ServerSessionSaveFailed,
 		AuthLoginDisabled,
 		AuthInvalidCredentials,
+		AuthRegisterDisabled,
+		AuthPasswordComplexity,
+		AuthVerificationRequired,
+		AuthVerificationFailed,
+		AuthResetLinkInvalid,
+		UserUsernameTaken,
+		UserEmailTaken,
+		UserCreateFailed,
+		UserEmailNotRegistered,
+		UserPasswordResetFailed,
+		EmailDomainNotAllowed,
+		EmailSendFailed,
 	}
 }
