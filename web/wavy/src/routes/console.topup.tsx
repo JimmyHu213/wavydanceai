@@ -10,6 +10,7 @@ import { usePrompt } from '@/components/ui/AppDialogs'
 import { getSession, isAdmin } from '@/lib/session'
 import type { Topup, TopupAmountOption } from '@/lib/types'
 import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { cn } from '@/lib/cn'
 
 export const Route = createFileRoute('/console/topup')({
@@ -36,7 +37,7 @@ function TopupPage() {
     return <PageShell><InfoStateBox icon={<Loader2 className="h-5 w-5 animate-spin" />} text={t('topup.loading')} /></PageShell>
   }
   if (infoErr) {
-    const msg = infoErr instanceof ApiError ? infoErr.message : 'topup unavailable'
+    const msg = errorText(infoErr, t, t('topup.unavailable'))
     return <PageShell><InfoStateBox icon={<XCircle className="h-5 w-5" />} text={msg} tone="warn" /></PageShell>
   }
   if (!info) return null
@@ -111,7 +112,7 @@ function RechargeCard({ info, onSuccess }: { info: NonNullable<Awaited<ReturnTyp
       // the gateway's webhook regardless of whether the user finishes.
       window.location.href = r.pay_url
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : 'failed to start payment'),
+    onError: (e) => setErr(errorText(e, t, t('topup.startFailed'))),
   })
 
   return (

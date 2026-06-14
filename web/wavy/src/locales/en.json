@@ -620,6 +620,8 @@
     "noGateways": "No payment gateways are enabled yet. Ask an admin to turn one on under Settings → Payments.",
     "quotaUnit": "quota",
     "errBelowMin": "Amount is below the minimum.",
+    "unavailable": "Top-up is currently unavailable.",
+    "startFailed": "Could not start the payment. Please try again.",
     "amount": {
       "label": "Step 1",
       "title": "Pick an amount",
@@ -799,7 +801,8 @@
     "user": { "username_taken": "That username is already taken.", "email_taken": "That email address is already in use.", "create_failed": "Could not create your account. Please try again.", "email_not_registered": "That email address is not registered.", "password_reset_failed": "Could not reset your password. Please try again." },
     "email": { "domain_not_allowed": "Your email domain is not on the allowed list.", "send_failed": "Could not send the email. Please try again." },
     "token": { "not_found": "Token not found.", "expired": "This token has expired and cannot be enabled. Update its expiry or set it to never expire.", "exhausted": "This token's quota is used up and it cannot be enabled. Update its remaining quota or set it to unlimited.", "save_failed": "Could not save the token. Please try again." },
-    "channel": { "not_found": "Channel not found.", "save_failed": "Could not save the channel. Please try again.", "test_failed": "Channel test failed." }
+    "channel": { "not_found": "Channel not found.", "save_failed": "Could not save the channel. Please try again.", "test_failed": "Channel test failed." },
+    "topup": { "payments_disabled": "Payments are currently disabled.", "gateway_unavailable": "This payment method is unavailable right now.", "amount_below_minimum": "The amount is below the minimum.", "redeem_failed": "Could not redeem that code." }
   },
   "docs": {
     "topbar": { "kicker": "Docs" },

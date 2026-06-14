@@ -834,19 +834,13 @@ func TopUp(c *gin.Context) {
 	req := topUpRequest{}
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	id := c.GetInt("id")
 	quota, err := model.Redeem(ctx, req.Key, id)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.TopupRedeemFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

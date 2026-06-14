@@ -40,6 +40,12 @@ const (
 	ChannelNotFound   = "channel.not_found"
 	ChannelSaveFailed = "channel.save_failed"
 	ChannelTestFailed = "channel.test_failed"
+
+	// topup
+	TopupPaymentsDisabled   = "topup.payments_disabled"
+	TopupGatewayUnavailable = "topup.gateway_unavailable"
+	TopupAmountBelowMinimum = "topup.amount_below_minimum"
+	TopupRedeemFailed       = "topup.redeem_failed"
 )
 
 // All returns every defined code; used by tests to guard uniqueness/format.
@@ -69,5 +75,9 @@ func All() []string {
 		ChannelNotFound,
 		ChannelSaveFailed,
 		ChannelTestFailed,
+		TopupPaymentsDisabled,
+		TopupGatewayUnavailable,
+		TopupAmountBelowMinimum,
+		TopupRedeemFailed,
 	}
 }
