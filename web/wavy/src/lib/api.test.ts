@@ -66,6 +66,7 @@ describe('unwrap', () => {
     const res = { data: { success: false, message: 'oops' }, status: 200 } as Parameters<typeof unwrap>[0]
     try {
       unwrap(res)
+      expect.unreachable('should have thrown')
     } catch (e) {
       expect((e as ApiError).code).toBeUndefined()
     }

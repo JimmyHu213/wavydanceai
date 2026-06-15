@@ -44,6 +44,9 @@ api.interceptors.response.use(
 
 /** Unwrap a response envelope; throw ApiError if backend returned `success: false`. */
 export function unwrap<T>(res: AxiosResponse<ApiResponse<T>>): T {
-  if (!res.data.success) throw new ApiError(res.data.message || 'request failed', res.status, res.data.code)
+  if (!res.data.success) {
+    const code = typeof res.data.code === 'string' ? res.data.code : undefined
+    throw new ApiError(res.data.message || 'request failed', res.status, code)
+  }
   return res.data.data as T
 }

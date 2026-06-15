@@ -29,7 +29,9 @@ func TestUpdateOption_InvalidTheme_HasCode(t *testing.T) {
 		Success bool   `json:"success"`
 		Code    string `json:"code"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &body)
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
 	if body.Success || body.Code != errcode.OptionInvalidValue {
 		t.Fatalf("got success=%v code=%q, want false / %q", body.Success, body.Code, errcode.OptionInvalidValue)
 	}
