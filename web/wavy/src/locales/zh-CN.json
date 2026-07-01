@@ -620,6 +620,8 @@
     "noGateways": "尚未启用任何支付通道。请联系管理员在 设置 → 支付 中开启。",
     "quotaUnit": "额度",
     "errBelowMin": "金额低于最小限额。",
+    "unavailable": "充值当前不可用。",
+    "startFailed": "无法发起支付，请重试。",
     "amount": {
       "label": "第 1 步",
       "title": "选择金额",
@@ -790,6 +792,19 @@
     "about": "关于",
     "privacy": "隐私",
     "terms": "条款"
+  },
+  "errors": {
+    "generic": "出错了，请重试。",
+    "param": { "invalid": "参数有误。" },
+    "server": { "internal": "服务器错误，请重试。", "session_save_failed": "无法保存会话信息，请重试。" },
+    "auth": { "login_disabled": "管理员关闭了密码登录。", "invalid_credentials": "用户名或密码错误，或账号已被封禁。", "register_disabled": "当前已关闭注册。", "password_complexity": "密码复杂度不足。", "verification_required": "管理员开启了邮箱验证，请输入邮箱地址和验证码。", "verification_failed": "验证码错误或已过期。", "reset_link_invalid": "重置链接非法或已过期。", "unauthenticated": "请先登录后再继续。" },
+    "user": { "username_taken": "该用户名已被占用。", "email_taken": "该邮箱地址已被占用。", "create_failed": "创建账号失败，请重试。", "email_not_registered": "该邮箱地址未注册。", "password_reset_failed": "重置密码失败，请重试。" },
+    "email": { "domain_not_allowed": "您的邮箱域名不在白名单中。", "send_failed": "发送邮件失败，请重试。" },
+    "token": { "not_found": "未找到该令牌。", "expired": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期。", "exhausted": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度。", "save_failed": "保存令牌失败，请重试。" },
+    "channel": { "not_found": "未找到该渠道。", "save_failed": "保存渠道失败，请重试。", "test_failed": "渠道测试失败。" },
+    "topup": { "payments_disabled": "充值当前不可用。", "gateway_unavailable": "该支付方式当前不可用。", "amount_below_minimum": "金额低于最小限额。", "redeem_failed": "兑换码无法兑换。" },
+    "option": { "invalid_value": "该设置值不被允许。", "save_failed": "保存设置失败，请重试。" },
+    "playground": { "token_failed": "无法准备体验台令牌，请重试。", "models_failed": "无法加载可用模型，请重试。" }
   },
   "docs": {
     "topbar": { "kicker": "文档" },

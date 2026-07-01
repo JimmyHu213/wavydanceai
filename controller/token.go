@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/network"
 	"github.com/songquanpeng/one-api/common/random"
@@ -124,18 +125,12 @@ func AddToken(c *gin.Context) {
 	token := model.Token{}
 	err := c.ShouldBindJSON(&token)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	err = validateToken(c, token)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("参数错误：%s", err.Error()),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, fmt.Sprintf("参数错误：%s", err.Error()))
 		return
 	}
 
@@ -153,10 +148,7 @@ func AddToken(c *gin.Context) {
 	}
 	err = cleanToken.Insert()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.TokenSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -172,10 +164,7 @@ func DeleteToken(c *gin.Context) {
 	userId := c.GetInt(ctxkey.Id)
 	err := model.DeleteTokenById(id, userId)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.TokenSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -191,41 +180,26 @@ func UpdateToken(c *gin.Context) {
 	token := model.Token{}
 	err := c.ShouldBindJSON(&token)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, err.Error())
 		return
 	}
 	err = validateToken(c, token)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": fmt.Sprintf("参数错误：%s", err.Error()),
-		})
+		SendError(c, http.StatusOK, errcode.ParamInvalid, fmt.Sprintf("参数错误：%s", err.Error()))
 		return
 	}
 	cleanToken, err := model.GetTokenByIds(token.Id, userId)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.TokenNotFound, err.Error())
 		return
 	}
 	if token.Status == model.TokenStatusEnabled {
 		if cleanToken.Status == model.TokenStatusExpired && cleanToken.ExpiredTime <= helper.GetTimestamp() && cleanToken.ExpiredTime != -1 {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期",
-			})
+			SendError(c, http.StatusOK, errcode.TokenExpired, "令牌已过期，无法启用，请先修改令牌过期时间，或者设置为永不过期")
 			return
 		}
 		if cleanToken.Status == model.TokenStatusExhausted && cleanToken.RemainQuota <= 0 && !cleanToken.UnlimitedQuota {
-			c.JSON(http.StatusOK, gin.H{
-				"success": false,
-				"message": "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度",
-			})
+			SendError(c, http.StatusOK, errcode.TokenExhausted, "令牌可用额度已用尽，无法启用，请先修改令牌剩余额度，或者设置为无限额度")
 			return
 		}
 	}
@@ -242,10 +216,7 @@ func UpdateToken(c *gin.Context) {
 	}
 	err = cleanToken.Update()
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.TokenSaveFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

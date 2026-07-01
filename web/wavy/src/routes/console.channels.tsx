@@ -10,7 +10,7 @@ import { ChannelDialog } from '@/components/console/ChannelDialog'
 import { CHANNEL_TYPE, channelsService } from '@/lib/services/channels'
 import { useConfirm } from '@/components/ui/AppDialogs'
 import { getSession, isAdmin } from '@/lib/session'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import type { Channel } from '@/lib/types'
 
 type DialogState = { kind: 'create' } | { kind: 'edit'; id: number } | null
@@ -44,7 +44,7 @@ function ChannelsPage() {
       setErr(null)
       qc.invalidateQueries({ queryKey: ['channels'] })
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : t('ch.actionFailed')),
+    onError: (e) => setErr(errorText(e, t, t('ch.actionFailed'))),
   })
 
   const remove = useMutation({
@@ -53,7 +53,7 @@ function ChannelsPage() {
       setErr(null)
       qc.invalidateQueries({ queryKey: ['channels'] })
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : t('ch.actionFailed')),
+    onError: (e) => setErr(errorText(e, t, t('ch.actionFailed'))),
   })
 
   const test = useMutation({
@@ -62,7 +62,7 @@ function ChannelsPage() {
       setErr(null)
       qc.invalidateQueries({ queryKey: ['channels'] })
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : t('ch.actionFailed')),
+    onError: (e) => setErr(errorText(e, t, t('ch.actionFailed'))),
   })
 
   const columns: Column<Channel>[] = [

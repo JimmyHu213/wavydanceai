@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 
 	"github.com/songquanpeng/one-api/common/config"
 	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/logger"
 	"github.com/songquanpeng/one-api/model"
 	"github.com/songquanpeng/one-api/service/payment"
@@ -34,10 +36,7 @@ type CryptoAdapterInfo struct {
 // frontend should use after payment.
 func GetTopupInfo(c *gin.Context) {
 	if !config.PaymentEnabled {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "payments disabled",
-		})
+		SendError(c, http.StatusOK, errcode.TopupPaymentsDisabled, "payments disabled")
 		return
 	}
 	cryptos := make([]CryptoAdapterInfo, 0)
@@ -106,7 +105,7 @@ type RequestTopupAmountRequest struct {
 // paid this money right now. Pure preview — no order is created.
 func RequestTopupAmount(c *gin.Context) {
 	if !config.PaymentEnabled {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "payments disabled"})
+		SendError(c, http.StatusOK, errcode.TopupPaymentsDisabled, "payments disabled")
 		return
 	}
 	var req RequestTopupAmountRequest
@@ -185,10 +184,27 @@ func AdminCompleteTopup(c *gin.Context) {
 // ---- helpers ----
 
 func respondError(c *gin.Context, err error) {
-	c.JSON(http.StatusOK, gin.H{
-		"success": false,
-		"message": err.Error(),
-	})
+	SendError(c, http.StatusOK, topupErrorCode(err), err.Error())
+}
+
+// topupErrorCode maps the well-known sentinel errors shared across the top-up
+// gateways to stable codes; anything else is a wrapped backend error and gets
+// the generic server.internal code.
+func topupErrorCode(err error) string {
+	switch {
+	case errors.Is(err, errPaymentsDisabled):
+		return errcode.TopupPaymentsDisabled
+	case errors.Is(err, errStripeDisabled),
+		errors.Is(err, errEpayDisabled),
+		errors.Is(err, errCryptoUnknownAdapter),
+		errors.Is(err, errCryptoAdapterDisabled),
+		errors.Is(err, errCryptoOnChainUnsupported):
+		return errcode.TopupGatewayUnavailable
+	case errors.Is(err, errBelowMinimum):
+		return errcode.TopupAmountBelowMinimum
+	default:
+		return errcode.ServerInternal
+	}
 }
 
 // pagination reads ?p=N&size=M with sensible defaults and a hard cap.

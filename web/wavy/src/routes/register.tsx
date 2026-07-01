@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/lib/services/auth'
 import { clearSessionCache, getSession } from '@/lib/session'
-import { ApiError } from '@/lib/api'
+import { errorText } from '@/lib/errorText'
 import { OAuthButtons } from '@/components/auth/OAuthButtons'
 import { checkPassword, PASSWORD_MAX } from '@/lib/password'
 import { checkUsername, USERNAME_MAX } from '@/lib/username'
@@ -90,7 +90,7 @@ function RegisterPage() {
       setInfo(t('register.codeSent', { email }))
       setCooldown(60)
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('register.codeSendFailed'))
+      setErr(errorText(e, t, t('register.codeSendFailed')))
       // Tokens are single-use — siteverify consumed it even though the request
       // failed, so fetch a fresh one before the user retries.
       turnstile.reset()
@@ -122,7 +122,7 @@ function RegisterPage() {
       clearSessionCache()
       navigate({ to: '/console' })
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t('register.failed'))
+      setErr(errorText(e, t, t('register.failed')))
       // Single-use token was consumed; get a fresh one for the retry.
       turnstile.reset()
     } finally {

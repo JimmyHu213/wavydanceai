@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/songquanpeng/one-api/common/ctxkey"
+	"github.com/songquanpeng/one-api/common/errcode"
 	"github.com/songquanpeng/one-api/common/helper"
 	"github.com/songquanpeng/one-api/common/random"
 	"github.com/songquanpeng/one-api/model"
@@ -98,8 +99,8 @@ var imageModelSubstrings = []string{
 	"sdxl",
 	"midjourney",
 	"imagen",
-	"-image",   // qwen-image, gemini-image, etc.
-	"image-",   // image-1, image-2
+	"-image", // qwen-image, gemini-image, etc.
+	"image-", // image-1, image-2
 	"recraft",
 	"ideogram",
 }
@@ -222,10 +223,7 @@ func isChatModel(name string) bool {
 func GetPlaygroundToken(c *gin.Context) {
 	userId := c.GetInt(ctxkey.Id)
 	if userId == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "unauthenticated",
-		})
+		SendError(c, http.StatusUnauthorized, errcode.AuthUnauthenticated, "unauthenticated")
 		return
 	}
 
@@ -240,10 +238,7 @@ func GetPlaygroundToken(c *gin.Context) {
 		return
 	}
 	if err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.PlaygroundTokenFailed, err.Error())
 		return
 	}
 
@@ -259,10 +254,7 @@ func GetPlaygroundToken(c *gin.Context) {
 		Status:         model.TokenStatusEnabled,
 	}
 	if err := fresh.Insert(); err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.PlaygroundTokenFailed, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -296,18 +288,12 @@ func getPlaygroundModelsByModality(c *gin.Context, match func(string) bool) {
 	userId := c.GetInt(ctxkey.Id)
 	userGroup, err := model.CacheGetUserGroup(userId)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.PlaygroundModelsFailed, err.Error())
 		return
 	}
 	allModels, err := model.CacheGetGroupModels(ctx, userGroup)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
+		SendError(c, http.StatusOK, errcode.PlaygroundModelsFailed, err.Error())
 		return
 	}
 	filtered := make([]string, 0, len(allModels))
