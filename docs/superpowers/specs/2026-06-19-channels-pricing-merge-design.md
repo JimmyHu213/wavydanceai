@@ -38,8 +38,9 @@ against, and put channel management and pricing on one page so the data visibly 
 4. Layout: **channel management on top → pricing below**.
 5. Access: page guard is **Admin (10)**. The **pricing section renders only for Root (100)**;
    Admins see only the channel section. (Channels stay Admin-manageable, as today.)
-6. The standalone **Models** and **Channels** nav items are **removed**; old `/console/models`
-   and `/console/pricing` URLs **redirect** to the merged page.
+6. The standalone **Models** and **Pricing** nav items are **removed**; old `/console/models`
+   and `/console/pricing` URLs **redirect** to the merged page. (Channels is not removed — it
+   moves from OPERATIONS to ACCOUNT, keeping its label.)
 7. Nav label stays **"Channels"**.
 8. Provided-but-unpriced models are **surfaced in the pricing section** (blank/flagged row to fill
    in) rather than rejected at request time. Backend billing/routing is **untouched** this round.
@@ -120,7 +121,7 @@ Persist `ModelRatio` + `CompletionRatio` together via the existing atomic
 
 ## Data flow
 
-```
+```text
 channelsService.listAll()  ──► provided set (union of channel.models)
         │                                   │
         ▼                                   ▼

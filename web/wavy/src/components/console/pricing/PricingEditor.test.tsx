@@ -315,3 +315,43 @@ describe('<PricingEditor> raw JSON mode', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('<PricingEditor> input-price validation', () => {
+  it('blocks save on a malformed input price so the ratio is not silently dropped', async () => {
+    renderEditor()
+    const price = screen.getByLabelText('gpt-4o input price')
+    await userEvent.clear(price)
+    await userEvent.type(price, 'abc')
+
+    // Editing the input price clears the ratio when it can't be parsed; if the
+    // row weren't flagged invalid, save would run buildModelMaps and drop
+    // gpt-4o's ratio entirely (→ backend 30x fallback billing).
+    expect(modelsSection().getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+})
+
+describe('<PricingEditor> provided-but-unpriced counter', () => {
+  it('counts only channel-provided models with a blank ratio', () => {
+    renderEditor({
+      providedModels: ['gpt-4o', 'zeta-model'],
+      modelRatio: { 'gpt-4o': 1.25 },
+      completionRatio: {},
+    })
+    // zeta-model is provided but has no ratio → exactly one unpriced.
+    expect(modelsSection().getByText(/1 unpriced/i)).toBeInTheDocument()
+  })
+
+  it('excludes a manually-added non-provided row from the count', async () => {
+    renderEditor({
+      providedModels: ['gpt-4o'],
+      modelRatio: { 'gpt-4o': 1.25 },
+      completionRatio: {},
+    })
+    expect(modelsSection().queryByText(/unpriced/i)).toBeNull()
+
+    // A manual row with a non-provided name and blank ratio must not be counted.
+    await userEvent.click(modelsSection().getByRole('button', { name: 'Add model' }))
+    await userEvent.type(screen.getByLabelText('new model name'), 'manual-extra')
+    expect(modelsSection().queryByText(/unpriced/i)).toBeNull()
+  })
+})

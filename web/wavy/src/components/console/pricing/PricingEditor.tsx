@@ -252,6 +252,7 @@ export function PricingEditor({
     r.name.trim() === '' ||
     modelDups.has(r.name.trim()) ||
     (r.ratio.trim() !== '' && parseRatio(r.ratio) === null) ||
+    (r.inputPrice.trim() !== '' && parseRatio(r.inputPrice) === null) ||
     (r.completion.trim() !== '' && parseRatio(r.completion) === null) ||
     outputPriceInvalid(r)
   const groupsInvalid = groups.some(groupRowInvalid)
@@ -352,10 +353,13 @@ export function PricingEditor({
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   // Provided-but-unpriced models bill at the backend's 30x fallback until set —
-  // surface the count so they don't slip through silently.
-  const unpriced = providedModels
-    ? models.filter((r) => r.name.trim() !== '' && r.ratio.trim() === '').length
-    : 0
+  // surface the count so they don't slip through silently. Scope strictly to the
+  // channel-provided set so manually-added rows can't inflate the count.
+  const unpriced = useMemo(() => {
+    if (!providedModels) return 0
+    const provided = new Set(providedModels)
+    return models.filter((r) => provided.has(r.name.trim()) && r.ratio.trim() === '').length
+  }, [providedModels, models])
 
   function addModel() {
     setModels((rows) => [{ ...makeModelRow('', '', '') }, ...rows])
@@ -583,7 +587,7 @@ function ModelRowView({
         label={`${name} input price`}
         value={row.inputPrice}
         dirty={dirty}
-        invalid={row.ratio.trim() !== '' && parseRatio(row.ratio) === null}
+        invalid={row.inputPrice.trim() !== '' && parseRatio(row.inputPrice) === null}
         onChange={(v) => onEdit('inputPrice', v)}
       />
       <CellInput
